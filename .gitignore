@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+*.log
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+.DS_Store
+analysis-output/
+test-photos/

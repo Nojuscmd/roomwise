@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Roomwise",
+    "slug": "roomwise",
+    "version": "0.1.0",
+    "scheme": "roomwise",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Roomwise needs the camera to photograph your room.",
+          "photosPermission": "Roomwise needs photo access to analyze your room."
+        }
+      ]
+    ],
+    "ios": { "supportsTablet": false, "bundleIdentifier": "com.example.roomwise" },
+    "android": { "package": "com.example.roomwise" }
+  }
+}
