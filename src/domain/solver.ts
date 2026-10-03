@@ -29,8 +29,8 @@ const WALL_STEP_CM = 20;
 const FLOAT_STEP_CM = 50;
 const MOVE_THRESHOLD_CM = 10;
 const REFINEMENT_PASSES = 2;
-/** A move must improve the overall score by more than this (0.01 = 1 percentage point). */
-const MIN_MOVE_GAIN = 0.01;
+/** A move must improve the overall score by more than this (0.03 = 3 percentage points). */
+const MIN_MOVE_GAIN = 0.03;
 
 function dims(item: Furniture, facing: Furniture['facing']): { w: number; h: number } {
   const swap = facing === 'E' || facing === 'W';

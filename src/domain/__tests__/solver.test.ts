@@ -84,10 +84,10 @@ describe('suggestArrangement outcomes', () => {
     expect(result.items).toEqual(good.items);
   });
 
-  it('only keeps moves that gain more than the minimum improvement', () => {
+  it('only keeps moves that gain more than the minimum improvement (3 points)', () => {
     const { moves, scoreBefore, scoreAfter } = suggestArrangement(messy(), 'ergonomic');
     expect(moves.length).toBeGreaterThan(0);
-    expect(scoreAfter - scoreBefore).toBeGreaterThan(0.01);
+    expect(scoreAfter - scoreBefore).toBeGreaterThan(0.03);
   });
 
   it('handles an empty room', () => {
