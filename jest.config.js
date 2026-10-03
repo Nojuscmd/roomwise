@@ -10,6 +10,8 @@ module.exports = {
       tsconfig: {
         strict: true,
         esModuleInterop: true,
+        types: ['jest', 'node'],
+        ignoreDeprecations: '6.0',
         target: 'es2020',
         module: 'commonjs',
         noUncheckedIndexedAccess: true,

@@ -24,6 +24,7 @@ Coordinate system (top-down floor plan, centimetres):
 Rules:
 - Estimate sizes using typical furniture dimensions (e.g. double bed ~140x200, door ~90 wide, desk ~120x60).
 - Only include furniture you can actually see. Do not invent items. Unseen areas: say so in "notes".
+- "label" is a short name of one to three words (e.g. "Queen bed", "Desk", "Nightstand"). No descriptions.
 - "confidence" is 0 to 1 and should be low when walls or corners are hidden or the photo is unclear.
 - "notes" is one or two plain sentences about uncertainty (max 300 characters).
 - If the image is not a room interior, return {"error": "not_a_room"}.`;

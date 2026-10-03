@@ -29,6 +29,8 @@ const WALL_STEP_CM = 20;
 const FLOAT_STEP_CM = 50;
 const MOVE_THRESHOLD_CM = 10;
 const REFINEMENT_PASSES = 2;
+/** A move must improve the overall score by more than this (0.01 = 1 percentage point). */
+const MIN_MOVE_GAIN = 0.01;
 
 function dims(item: Furniture, facing: Furniture['facing']): { w: number; h: number } {
   const swap = facing === 'E' || facing === 'W';
@@ -120,6 +122,32 @@ function reasonsFor(itemId: string, before: RuleResult[], after: RuleResult[]): 
 }
 
 /**
+ * Undo moves that barely help, so a room that is already fine is left alone instead of having
+ * furniture shuffled for a fraction of a percent. Total score loss from all reverts together stays
+ * within MIN_MOVE_GAIN, and an item is only put back where it was if that spot is still valid.
+ */
+function revertMinorMoves(
+  original: Furniture[],
+  placed: Furniture[],
+  layout: RoomLayout,
+  mode: Mode,
+): Furniture[] {
+  let result = [...placed];
+  const bestScore = evaluateLayout({ ...layout, items: result }, mode).score;
+  for (const orig of original) {
+    const index = result.findIndex((p) => p.id === orig.id);
+    const current = result[index];
+    if (!current || !hasMoved(orig, current)) continue;
+    const trial = result.map((p, i) => (i === index ? orig : p));
+    const others = trial.filter((_, i) => i !== index);
+    if (!isValidPlacement(orig, others, layout)) continue;
+    const trialScore = evaluateLayout({ ...layout, items: trial }, mode).score;
+    if (bestScore - trialScore <= MIN_MOVE_GAIN) result = trial;
+  }
+  return result;
+}
+
+/**
  * Suggest a better arrangement for the given mode.
  * Deterministic greedy placement followed by a couple of coordinate-descent refinement passes.
  */
@@ -139,8 +167,10 @@ export function suggestArrangement(layout: RoomLayout, mode: Mode): Arrangement 
     });
   }
 
+  const settled = revertMinorMoves(original, placed, layout, mode);
+
   // Report items in the original order so the UI stays stable.
-  const items = original.map((o) => placed.find((p) => p.id === o.id) ?? o);
+  const items = original.map((o) => settled.find((p) => p.id === o.id) ?? o);
   const before = evaluateLayout(layout, mode);
   const after = evaluateLayout({ ...layout, items }, mode);
 

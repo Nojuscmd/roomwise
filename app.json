@@ -14,9 +14,15 @@
           "cameraPermission": "Roomwise needs the camera to photograph your room.",
           "photosPermission": "Roomwise needs photo access to analyze your room."
         }
-      ]
+      ],
+      "expo-asset"
     ],
-    "ios": { "supportsTablet": false, "bundleIdentifier": "com.example.roomwise" },
-    "android": { "package": "com.example.roomwise" }
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.example.roomwise"
+    },
+    "android": {
+      "package": "com.example.roomwise"
+    }
   }
 }

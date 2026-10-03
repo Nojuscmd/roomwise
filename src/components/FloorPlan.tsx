@@ -12,6 +12,13 @@ interface Props {
 }
 
 const WALL_PX = 3;
+const LABEL_CHAR_PX = 6.2;
+
+/** Shorten a label with an ellipsis so it never spills outside its furniture box. */
+function fitLabel(label: string, widthPx: number): string {
+  const maxChars = Math.max(3, Math.floor((widthPx - 10) / LABEL_CHAR_PX));
+  return label.length <= maxChars ? label : `${label.slice(0, maxChars - 1).trimEnd()}…`;
+}
 
 function OpeningMark({ o, room, scale }: { o: Opening; room: RoomLayout['room']; scale: number }) {
   const z = openingZone(o, room, 6);
@@ -106,7 +113,7 @@ export function FloorPlan({ layout, items, moves = [], width }: Props) {
                 fill={colors.ink}
                 textAnchor="middle"
               >
-                {item.label}
+                {fitLabel(item.label, w)}
               </SvgText>
             ) : null}
           </G>

@@ -76,6 +76,20 @@ describe('suggestArrangement outcomes', () => {
     expect(bedMove?.reasons.some((r) => r.includes('door'))).toBe(true);
   });
 
+  it('leaves a room alone when it is already good', () => {
+    const good = makeLayout([bed({ xCm: 100, yCm: 0 }), desk({ xCm: 340, yCm: 120, facing: 'W' })]);
+    const result = suggestArrangement(good, 'ergonomic');
+    expect(result.scoreBefore).toBeGreaterThan(0.95);
+    expect(result.moves).toEqual([]);
+    expect(result.items).toEqual(good.items);
+  });
+
+  it('only keeps moves that gain more than the minimum improvement', () => {
+    const { moves, scoreBefore, scoreAfter } = suggestArrangement(messy(), 'ergonomic');
+    expect(moves.length).toBeGreaterThan(0);
+    expect(scoreAfter - scoreBefore).toBeGreaterThan(0.01);
+  });
+
   it('handles an empty room', () => {
     const result = suggestArrangement(makeLayout([]), 'ergonomic');
     expect(result.items).toEqual([]);
