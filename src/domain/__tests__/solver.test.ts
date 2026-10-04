@@ -102,3 +102,49 @@ describe('suggestArrangement outcomes', () => {
     expect(result.items[0]).toEqual(huge);
   });
 });
+
+describe('desk chairs', () => {
+  const chairOf = (d: ReturnType<typeof desk>) => ({
+    id: 'chair',
+    type: 'other' as const,
+    label: 'Desk chair',
+    xCm: d.xCm - 50,
+    yCm: d.yCm + 10,
+    widthCm: 45,
+    depthCm: 45,
+    facing: 'E' as const,
+  });
+
+  it('moves the chair with its desk and keeps it next to the desk', () => {
+    const d = desk({ xCm: 150, yCm: 0, facing: 'N' });
+    const layout = makeLayout([bed({ xCm: 0, yCm: 100, facing: 'S' }), d, chairOf(d)]);
+    const { items, moves } = suggestArrangement(layout, 'ergonomic');
+    const newDesk = items.find((i) => i.id === 'desk')!;
+    const newChair = items.find((i) => i.id === 'chair')!;
+    if (moves.some((m) => m.itemId === 'desk')) {
+      const gapX = Math.max(
+        0,
+        newChair.xCm - (newDesk.xCm + footprint(newDesk).w),
+        newDesk.xCm - (newChair.xCm + footprint(newChair).w),
+      );
+      const gapY = Math.max(
+        0,
+        newChair.yCm - (newDesk.yCm + footprint(newDesk).h),
+        newDesk.yCm - (newChair.yCm + footprint(newChair).h),
+      );
+      expect(Math.hypot(gapX, gapY)).toBeLessThanOrEqual(30);
+    }
+    items.forEach((a, i) => {
+      expect(insideRoom(footprint(a), layout.room)).toBe(true);
+      items.slice(i + 1).forEach((b) => expect(intersects(footprint(a), footprint(b))).toBe(false));
+    });
+  });
+
+  it('does not move the chair when the desk stays put', () => {
+    const d = desk({ xCm: 340, yCm: 120, facing: 'W' });
+    const layout = makeLayout([bed({ xCm: 100, yCm: 0 }), d, chairOf(d)]);
+    const { items, moves } = suggestArrangement(layout, 'ergonomic');
+    expect(moves.some((m) => m.itemId === 'chair')).toBe(moves.some((m) => m.itemId === 'desk'));
+    if (moves.length === 0) expect(items).toEqual(layout.items);
+  });
+});

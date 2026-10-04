@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { FloorPlan } from '@/components/FloorPlan';
-import { Button, Card, Centered, ErrorNotice, SegmentedControl } from '@/components/ui';
+import { Bullet, Button, Card, Centered, ErrorNotice, SegmentedControl } from '@/components/ui';
 import { Mode, parseRoomAnalysis, RoomAnalysis, suggestArrangement } from '@/domain';
 import {
   analyzeRoom,
@@ -212,9 +212,7 @@ export default function RoomScreen() {
               <Card key={m.itemId} style={{ gap: spacing.xs }}>
                 <Text style={type.heading}>Move the {m.label}</Text>
                 {m.reasons.map((r) => (
-                  <Text key={r} style={type.body}>
-                    • {r}
-                  </Text>
+                  <Bullet key={r}>{r}</Bullet>
                 ))}
               </Card>
             ))
@@ -224,9 +222,7 @@ export default function RoomScreen() {
             <Card style={{ backgroundColor: colors.warnSoft, gap: spacing.xs }}>
               <Text style={type.heading}>Still not ideal</Text>
               {arrangement.remainingIssues.map((r) => (
-                <Text key={`${r.ruleId}-${r.itemIds.join()}`} style={type.body}>
-                  • {r.message}
-                </Text>
+                <Bullet key={`${r.ruleId}-${r.itemIds.join()}`}>{r.message}</Bullet>
               ))}
             </Card>
           ) : null}

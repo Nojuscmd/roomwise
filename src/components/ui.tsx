@@ -99,6 +99,16 @@ export function Card({
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
+/** One bullet line whose text wraps inside its container instead of running off the edge. */
+export function Bullet({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.bulletRow}>
+      <Text style={type.body}>•</Text>
+      <Text style={[type.body, styles.bulletText]}>{children}</Text>
+    </View>
+  );
+}
+
 export function ErrorNotice({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <View style={styles.error} accessibilityRole="alert">
@@ -140,6 +150,8 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: spacing.md,
   },
+  bulletRow: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' },
+  bulletText: { flex: 1, flexShrink: 1 },
   error: {
     backgroundColor: colors.warnSoft,
     borderRadius: radius.md,

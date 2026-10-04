@@ -1,4 +1,4 @@
-import { footprint, insideRoom, intersects, openingZone, opposite } from './geometry';
+import { footprint, insideRoom, intersects, openingZone, opposite, Rect } from './geometry';
 import { DOOR_CLEARANCE_CM } from './rules/common';
 import { evaluateLayout } from './rules';
 import {
@@ -31,6 +31,13 @@ const MOVE_THRESHOLD_CM = 10;
 const REFINEMENT_PASSES = 2;
 /** A move must improve the overall score by more than this (0.03 = 3 percentage points). */
 const MIN_MOVE_GAIN = 0.03;
+/** Beds and wardrobes are heavy: moving them has to be clearly worth the effort. */
+const HEAVY_TYPES = new Set<FurnitureType>(['bed', 'wardrobe']);
+const MIN_HEAVY_MOVE_GAIN = 0.05;
+/** A chair this close to a desk is treated as that desk's chair and moves with it. */
+const CHAIR_PATTERN = /chair|stool/i;
+const CHAIR_MAX_DESK_GAP_CM = 80;
+const CHAIR_MAX_TUCK_GAP_CM = 30;
 
 function dims(item: Furniture, facing: Furniture['facing']): { w: number; h: number } {
   const swap = facing === 'E' || facing === 'W';
@@ -69,6 +76,51 @@ export function candidatePlacements(item: Furniture, layout: RoomLayout): Furnit
   return out;
 }
 
+type Companions = Map<string, Furniture>;
+
+function rectGap(a: Rect, b: Rect): number {
+  const dx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w));
+  const dy = Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h));
+  return Math.hypot(dx, dy);
+}
+
+/** Pair each desk with the chair standing closest to it, so the chair can follow the desk. */
+function findCompanions(items: Furniture[]): Companions {
+  const desks = items.filter((i) => i.type === 'desk');
+  const best = new Map<string, { chair: Furniture; gap: number }>();
+  for (const chair of items) {
+    if (chair.type === 'desk' || !CHAIR_PATTERN.test(chair.label)) continue;
+    let nearest: { desk: Furniture; gap: number } | null = null;
+    for (const desk of desks) {
+      const gap = rectGap(footprint(chair), footprint(desk));
+      if (gap <= CHAIR_MAX_DESK_GAP_CM && (!nearest || gap < nearest.gap)) nearest = { desk, gap };
+    }
+    if (!nearest) continue;
+    const current = best.get(nearest.desk.id);
+    if (!current || nearest.gap < current.gap)
+      best.set(nearest.desk.id, { chair, gap: nearest.gap });
+  }
+  return new Map([...best].map(([deskId, { chair }]) => [deskId, chair]));
+}
+
+/** Where a desk's chair stands: centred in front of the desk, facing it. */
+function chairFor(desk: Furniture, chair: Furniture, originalDesk: Furniture): Furniture {
+  const gap = Math.min(CHAIR_MAX_TUCK_GAP_CM, rectGap(footprint(chair), footprint(originalDesk)));
+  const facing = opposite(desk.facing);
+  const { w, h } = dims(chair, facing);
+  const d = footprint(desk);
+  switch (desk.facing) {
+    case 'N':
+      return { ...chair, facing, xCm: d.x + (d.w - w) / 2, yCm: d.y - h - gap };
+    case 'S':
+      return { ...chair, facing, xCm: d.x + (d.w - w) / 2, yCm: d.y + d.h + gap };
+    case 'W':
+      return { ...chair, facing, xCm: d.x - w - gap, yCm: d.y + (d.h - h) / 2 };
+    default:
+      return { ...chair, facing, xCm: d.x + d.w + gap, yCm: d.y + (d.h - h) / 2 };
+  }
+}
+
 function isValidPlacement(candidate: Furniture, others: Furniture[], layout: RoomLayout): boolean {
   const fp = footprint(candidate);
   if (!insideRoom(fp, layout.room)) return false;
@@ -82,12 +134,45 @@ function distanceMoved(a: Furniture, b: Furniture): number {
   return Math.hypot(a.xCm - b.xCm, a.yCm - b.yCm) + (a.facing === b.facing ? 0 : 50);
 }
 
-function pickBest(item: Furniture, others: Furniture[], layout: RoomLayout, mode: Mode): Furniture {
+interface Context {
+  layout: RoomLayout;
+  mode: Mode;
+  /** desk id -> its chair as originally photographed. */
+  companions: Companions;
+  /** desk id -> the desk as originally photographed. */
+  originals: Map<string, Furniture>;
+}
+
+/** The movable items plus every desk's chair standing where that desk currently is. */
+function withChairs(items: Furniture[], ctx: Context): Furniture[] {
+  const out = [...items];
+  for (const item of items) {
+    const chair = ctx.companions.get(item.id);
+    const original = ctx.originals.get(item.id);
+    if (chair && original) out.push(chairFor(item, chair, original));
+  }
+  return out;
+}
+
+/** Is this placement allowed, including the desk's chair if it has one? */
+function isValidWithChair(cand: Furniture, others: Furniture[], ctx: Context): boolean {
+  const fullOthers = withChairs(others, ctx);
+  if (!isValidPlacement(cand, fullOthers, ctx.layout)) return false;
+  const chair = ctx.companions.get(cand.id);
+  const original = ctx.originals.get(cand.id);
+  if (!chair || !original) return true;
+  return isValidPlacement(chairFor(cand, chair, original), [...fullOthers, cand], ctx.layout);
+}
+
+const scoreOf = (items: Furniture[], ctx: Context): number =>
+  evaluateLayout({ ...ctx.layout, items: withChairs(items, ctx) }, ctx.mode).score;
+
+function pickBest(item: Furniture, others: Furniture[], ctx: Context): Furniture {
   let best: Furniture | null = null;
   let bestScore = -Infinity;
-  for (const cand of candidatePlacements(item, layout)) {
-    if (!isValidPlacement(cand, others, layout)) continue;
-    const { score } = evaluateLayout({ ...layout, items: [...others, cand] }, mode);
+  for (const cand of candidatePlacements(item, ctx.layout)) {
+    if (!isValidWithChair(cand, others, ctx)) continue;
+    const score = scoreOf([...others, cand], ctx);
     // Tiny tie-breaker favouring the smallest change from where the item already is.
     const adjusted = score - distanceMoved(cand, item) * 1e-6;
     if (adjusted > bestScore) {
@@ -123,26 +208,29 @@ function reasonsFor(itemId: string, before: RuleResult[], after: RuleResult[]): 
 
 /**
  * Undo moves that barely help, so a room that is already fine is left alone instead of having
- * furniture shuffled for a fraction of a percent. Total score loss from all reverts together stays
- * within MIN_MOVE_GAIN, and an item is only put back where it was if that spot is still valid.
+ * furniture shuffled for a fraction of a percent. A move is always kept when it fixes a real
+ * problem for that item (a rule that was clearly failing). Otherwise heavy items need a bigger
+ * gain than light ones. Total score loss from all reverts together stays within the limits, and
+ * an item is only put back where it was if that spot is still valid.
  */
-function revertMinorMoves(
-  original: Furniture[],
-  placed: Furniture[],
-  layout: RoomLayout,
-  mode: Mode,
-): Furniture[] {
+function revertMinorMoves(original: Furniture[], placed: Furniture[], ctx: Context): Furniture[] {
+  const beforeResults = evaluateLayout(ctx.layout, ctx.mode).results;
   let result = [...placed];
-  const bestScore = evaluateLayout({ ...layout, items: result }, mode).score;
+  const bestScore = scoreOf(result, ctx);
   for (const orig of original) {
     const index = result.findIndex((p) => p.id === orig.id);
     const current = result[index];
     if (!current || !hasMoved(orig, current)) continue;
+    const afterResults = evaluateLayout(
+      { ...ctx.layout, items: withChairs(result, ctx) },
+      ctx.mode,
+    ).results;
+    if (reasonsFor(orig.id, beforeResults, afterResults).length > 0) continue;
     const trial = result.map((p, i) => (i === index ? orig : p));
     const others = trial.filter((_, i) => i !== index);
-    if (!isValidPlacement(orig, others, layout)) continue;
-    const trialScore = evaluateLayout({ ...layout, items: trial }, mode).score;
-    if (bestScore - trialScore <= MIN_MOVE_GAIN) result = trial;
+    if (!isValidWithChair(orig, others, ctx)) continue;
+    const limit = HEAVY_TYPES.has(orig.type) ? MIN_HEAVY_MOVE_GAIN : MIN_MOVE_GAIN;
+    if (bestScore - scoreOf(trial, ctx) <= limit) result = trial;
   }
   return result;
 }
@@ -150,42 +238,70 @@ function revertMinorMoves(
 /**
  * Suggest a better arrangement for the given mode.
  * Deterministic greedy placement followed by a couple of coordinate-descent refinement passes.
+ * A desk's chair is not placed on its own: it follows the desk.
  */
 export function suggestArrangement(layout: RoomLayout, mode: Mode): Arrangement {
   const original = layout.items;
-  const order = [...original].sort(
+  const companions = findCompanions(original);
+  const chairIds = new Set([...companions.values()].map((c) => c.id));
+  const originals = new Map(original.map((o) => [o.id, o]));
+  const ctx: Context = { layout, mode, companions, originals };
+
+  const movable = original.filter((o) => !chairIds.has(o.id));
+  const order = [...movable].sort(
     (a, b) => PRIORITY.indexOf(a.type) - PRIORITY.indexOf(b.type) || a.id.localeCompare(b.id),
   );
 
   const placed: Furniture[] = [];
-  for (const item of order) placed.push(pickBest(item, placed, layout, mode));
+  for (const item of order) placed.push(pickBest(item, placed, ctx));
 
   for (let pass = 0; pass < REFINEMENT_PASSES; pass++) {
     placed.forEach((item, i) => {
       const others = placed.filter((_, j) => j !== i);
-      placed[i] = pickBest(item, others, layout, mode);
+      placed[i] = pickBest(item, others, ctx);
     });
   }
 
-  const settled = revertMinorMoves(original, placed, layout, mode);
+  const settled = revertMinorMoves(movable, placed, ctx);
 
-  // Report items in the original order so the UI stays stable.
-  const items = original.map((o) => settled.find((p) => p.id === o.id) ?? o);
+  // Report items in the original order so the UI stays stable. A chair stays exactly where it was
+  // unless its desk moved.
+  const items = original.map((o) => {
+    if (!chairIds.has(o.id)) return settled.find((p) => p.id === o.id) ?? o;
+    const deskId = [...companions].find(([, c]) => c.id === o.id)?.[0] ?? '';
+    const desk = settled.find((p) => p.id === deskId);
+    const origDesk = originals.get(deskId);
+    return desk && origDesk && hasMoved(origDesk, desk) ? chairFor(desk, o, origDesk) : o;
+  });
   const before = evaluateLayout(layout, mode);
   const after = evaluateLayout({ ...layout, items }, mode);
+
+  const movedLabels = original
+    .filter((o) => !chairIds.has(o.id))
+    .filter((o) => {
+      const n = items.find((i) => i.id === o.id);
+      return n && hasMoved(o, n);
+    })
+    .map((o) => o.label);
 
   const moves: Move[] = [];
   for (const o of original) {
     const n = items.find((i) => i.id === o.id);
     if (!n || !hasMoved(o, n)) continue;
-    const reasons = reasonsFor(o.id, before.results, after.results);
-    moves.push({
-      itemId: o.id,
-      label: o.label,
-      from: placementOf(o),
-      to: placementOf(n),
-      reasons: reasons.length > 0 ? reasons : ['Repositioned to improve overall flow and balance.'],
-    });
+    const deskId = [...companions].find(([, c]) => c.id === o.id)?.[0];
+    const deskLabel = deskId ? originals.get(deskId)?.label : undefined;
+    const direct = reasonsFor(o.id, before.results, after.results);
+    const others = movedLabels.filter((label) => label !== o.label);
+    const reasons = deskLabel
+      ? [`Moves with the ${deskLabel} so you can still sit at it.`]
+      : direct.length > 0
+        ? direct
+        : [
+            others.length > 0
+              ? `Makes room so the ${others.join(' and ')} can be placed better.`
+              : 'Repositioned to improve overall flow and balance.',
+          ];
+    moves.push({ itemId: o.id, label: o.label, from: placementOf(o), to: placementOf(n), reasons });
   }
 
   return {
