@@ -33,7 +33,7 @@ const REFINEMENT_PASSES = 2;
 const MIN_MOVE_GAIN = 0.03;
 /** Beds and wardrobes are heavy: moving them has to be clearly worth the effort. */
 const HEAVY_TYPES = new Set<FurnitureType>(['bed', 'wardrobe']);
-const MIN_HEAVY_MOVE_GAIN = 0.05;
+const MIN_HEAVY_MOVE_GAIN = 0.1;
 /** A chair this close to a desk is treated as that desk's chair and moves with it. */
 const CHAIR_PATTERN = /chair|stool/i;
 const CHAIR_MAX_DESK_GAP_CM = 80;

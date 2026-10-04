@@ -91,6 +91,22 @@ export default function RoomScreen() {
     }
   }
 
+  /** Re-analysing replaces the current detection, so ask first when there is one. */
+  function confirmAnalysis() {
+    if (!room?.analysis_json) {
+      void runAnalysis();
+      return;
+    }
+    Alert.alert(
+      'Analyse again?',
+      'This replaces the current detection with a new one. The result can differ a little each time.',
+      [
+        { text: 'Keep current', style: 'cancel' },
+        { text: 'Analyse again', onPress: () => void runAnalysis() },
+      ],
+    );
+  }
+
   async function save() {
     if (!arrangement) return;
     setSaving(true);
@@ -159,14 +175,14 @@ export default function RoomScreen() {
           </Text>
           <Button
             title={room.analysis_json ? 'Analyse again' : 'Analyse room'}
-            onPress={runAnalysis}
+            onPress={confirmAnalysis}
             loading={analyzing}
           />
         </Card>
       ) : null}
 
       {layout && arrangement && parsed.analysis ? (
-        <>
+        <React.Fragment key={`${room.analyzed_at ?? 'none'}-${mode}`}>
           {parsed.analysis.confidence < 0.5 ? (
             <ErrorNotice message="The photo was hard to read, so treat this layout as a rough estimate. A wider photo or entering the room size helps." />
           ) : null}
@@ -231,10 +247,10 @@ export default function RoomScreen() {
           <Button
             title="Re-analyse photo"
             variant="secondary"
-            onPress={runAnalysis}
+            onPress={confirmAnalysis}
             loading={analyzing}
           />
-        </>
+        </React.Fragment>
       ) : null}
 
       {saved.length > 0 ? (
