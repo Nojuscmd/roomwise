@@ -29,6 +29,7 @@ const WALL_STEP_CM = 20;
 const FLOAT_STEP_CM = 50;
 const MOVE_THRESHOLD_CM = 10;
 const REFINEMENT_PASSES = 2;
+const DESCENT_PASSES = 3;
 /** A move must improve the overall score by more than this (0.03 = 3 percentage points). */
 const MIN_MOVE_GAIN = 0.03;
 /** Beds and wardrobes are heavy: moving them has to be clearly worth the effort. */
@@ -37,6 +38,8 @@ const MIN_HEAVY_MOVE_GAIN = 0.1;
 /** Score cost per cm moved, so small score differences never justify dragging furniture around. */
 const MOVE_COST_PER_CM = 0.00005;
 const HEAVY_MOVE_COST_PER_CM = 0.0002;
+/** Moves that fix no failing rule of their own (they only "make room") are capped at this many. */
+const MAX_INDIRECT_MOVES = 2;
 /** A chair this close to a desk is treated as that desk's chair and moves with it. */
 const CHAIR_PATTERN = /chair|stool/i;
 const CHAIR_MAX_DESK_GAP_CM = 80;
@@ -181,16 +184,23 @@ function isValidWithChair(cand: Furniture, others: Furniture[], ctx: Context): b
 const scoreOf = (items: Furniture[], ctx: Context): number =>
   evaluateLayout({ ...ctx.layout, items: withChairs(items, ctx) }, ctx.mode).score;
 
-function pickBest(item: Furniture, others: Furniture[], ctx: Context): Furniture {
+const moveCostPerCm = (f: Furniture): number =>
+  HEAVY_TYPES.has(f.type) ? HEAVY_MOVE_COST_PER_CM : MOVE_COST_PER_CM;
+
+function pickBest(
+  item: Furniture,
+  others: Furniture[],
+  ctx: Context,
+  origin: Furniture = item,
+): Furniture {
   let best: Furniture | null = null;
   let bestScore = -Infinity;
   // Staying where it is is always an option, so a good spot is only left for a clear gain.
-  for (const cand of [item, ...candidatePlacements(item, ctx.layout)]) {
+  for (const cand of [item, origin, ...candidatePlacements(item, ctx.layout)]) {
     if (!isValidWithChair(cand, others, ctx)) continue;
     const score = scoreOf([...others, cand], ctx);
     // Prefer the smallest change from where the item already is; heavy items cost more to move.
-    const perCm = HEAVY_TYPES.has(item.type) ? HEAVY_MOVE_COST_PER_CM : MOVE_COST_PER_CM;
-    const adjusted = score - distanceMoved(cand, item) * perCm;
+    const adjusted = score - distanceMoved(cand, origin) * moveCostPerCm(item);
     if (adjusted > bestScore) {
       bestScore = adjusted;
       best = cand;
@@ -248,7 +258,62 @@ function revertMinorMoves(original: Furniture[], placed: Furniture[], ctx: Conte
     const limit = HEAVY_TYPES.has(orig.type) ? MIN_HEAVY_MOVE_GAIN : MIN_MOVE_GAIN;
     if (bestScore - scoreOf(trial, ctx) <= limit) result = trial;
   }
-  return result;
+  return capIndirectMoves(original, result, ctx, beforeResults);
+}
+
+/**
+ * A long list of shuffled furniture is hard to follow and hard to do. Keep every move that fixes a
+ * failing rule, but allow only a couple of "makes room" moves: put back the least valuable ones.
+ */
+function capIndirectMoves(
+  original: Furniture[],
+  placed: Furniture[],
+  ctx: Context,
+  beforeResults: RuleResult[],
+): Furniture[] {
+  let result = [...placed];
+  for (;;) {
+    const afterResults = evaluateLayout(
+      { ...ctx.layout, items: withChairs(result, ctx) },
+      ctx.mode,
+    ).results;
+    const indirect = original.filter((orig) => {
+      const current = result.find((p) => p.id === orig.id);
+      return (
+        current &&
+        hasMoved(orig, current) &&
+        reasonsFor(orig.id, beforeResults, afterResults).length === 0
+      );
+    });
+    if (indirect.length <= MAX_INDIRECT_MOVES) return result;
+
+    const base = scoreOf(result, ctx);
+    let cheapest: { id: string; trial: Furniture[]; loss: number } | null = null;
+    for (const orig of indirect) {
+      const trial = result.map((p) => (p.id === orig.id ? orig : p));
+      const others = trial.filter((p) => p.id !== orig.id);
+      if (!isValidWithChair(orig, others, ctx)) continue;
+      const loss = base - scoreOf(trial, ctx);
+      if (!cheapest || loss < cheapest.loss) cheapest = { id: orig.id, trial, loss };
+    }
+    if (!cheapest) return result; // nothing can be put back safely
+    result = cheapest.trial;
+  }
+}
+
+/** Coordinate descent in place: each item takes its best spot given all the others. */
+function refine(
+  items: Furniture[],
+  ctx: Context,
+  originals: Map<string, Furniture> | null,
+  passes: number,
+): void {
+  for (let pass = 0; pass < passes; pass++) {
+    items.forEach((item, i) => {
+      const others = items.filter((_, j) => j !== i);
+      items[i] = pickBest(item, others, ctx, originals?.get(item.id) ?? item);
+    });
+  }
 }
 
 /**
@@ -268,15 +333,19 @@ export function suggestArrangement(layout: RoomLayout, mode: Mode): Arrangement 
     (a, b) => PRIORITY.indexOf(a.type) - PRIORITY.indexOf(b.type) || a.id.localeCompare(b.id),
   );
 
-  const placed: Furniture[] = [];
-  for (const item of order) placed.push(pickBest(item, placed, ctx));
+  // Candidate A: build the room up from nothing, then refine.
+  const greedy: Furniture[] = [];
+  for (const item of order) greedy.push(pickBest(item, greedy, ctx));
+  refine(greedy, ctx, null, REFINEMENT_PASSES);
 
-  for (let pass = 0; pass < REFINEMENT_PASSES; pass++) {
-    placed.forEach((item, i) => {
-      const others = placed.filter((_, j) => j !== i);
-      placed[i] = pickBest(item, others, ctx);
-    });
-  }
+  // Candidate B: start from the room as photographed and only improve it. This keeps unrelated
+  // furniture where it is instead of dodging items that were not placed yet.
+  const gentle = order.map((o) => o);
+  refine(gentle, ctx, originals, DESCENT_PASSES);
+
+  // Prefer the gentle result unless the from-scratch one is clearly better (a big fix such as a
+  // bed across the door needs a big move that small steps cannot reach).
+  const placed = scoreOf(greedy, ctx) - scoreOf(gentle, ctx) > 0.01 ? greedy : gentle;
 
   const settled = revertMinorMoves(movable, placed, ctx);
 
