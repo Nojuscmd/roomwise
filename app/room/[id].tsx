@@ -1,5 +1,5 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -59,9 +59,12 @@ export default function RoomScreen() {
     }
   }, [id]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Reload when returning from the correction screen.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   // Strictly validate whatever the model returned before the rest of the app trusts it.
   const parsed = useMemo<{ analysis?: RoomAnalysis; problem?: string }>(() => {
@@ -182,7 +185,7 @@ export default function RoomScreen() {
       ) : null}
 
       {layout && arrangement && parsed.analysis ? (
-        <React.Fragment key={`${room.analyzed_at ?? 'none'}-${mode}`}>
+        <React.Fragment key={`${room.updated_at}-${mode}`}>
           {parsed.analysis.confidence < 0.5 ? (
             <ErrorNotice message="The photo was hard to read, so treat this layout as a rough estimate. A wider photo or entering the room size helps." />
           ) : null}
@@ -244,6 +247,11 @@ export default function RoomScreen() {
           ) : null}
 
           <Button title="Save this arrangement" onPress={save} loading={saving} />
+          <Button
+            title="Correct detected items"
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/edit-room', params: { id } })}
+          />
           <Button
             title="Re-analyse photo"
             variant="secondary"

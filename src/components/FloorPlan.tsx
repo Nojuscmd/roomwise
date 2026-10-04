@@ -9,16 +9,12 @@ interface Props {
   /** Draw arrows from each item's previous position to its new one. */
   moves?: Move[];
   width: number;
+  /** Highlight this item and report taps on items (used by the correction screen). */
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
 }
 
 const WALL_PX = 3;
-const LABEL_CHAR_PX = 6.2;
-
-/** Shorten a label with an ellipsis so it never spills outside its furniture box. */
-function fitLabel(label: string, widthPx: number): string {
-  const maxChars = Math.max(3, Math.floor((widthPx - 10) / LABEL_CHAR_PX));
-  return label.length <= maxChars ? label : `${label.slice(0, maxChars - 1).trimEnd()}…`;
-}
 
 function OpeningMark({ o, room, scale }: { o: Opening; room: RoomLayout['room']; scale: number }) {
   const z = openingZone(o, room, 6);
@@ -52,7 +48,7 @@ function FacingMarker({ item, scale }: { item: Furniture; scale: number }) {
   return <Polygon points={pts[item.facing]} fill={colors.ink} opacity={0.35} />;
 }
 
-export function FloorPlan({ layout, items, moves = [], width }: Props) {
+export function FloorPlan({ layout, items, moves = [], width, selectedId, onSelect }: Props) {
   const { room, openings } = layout;
   const scale = width / room.widthCm;
   const height = room.depthCm * scale;
@@ -92,7 +88,7 @@ export function FloorPlan({ layout, items, moves = [], width }: Props) {
         const h = fp.h * scale;
         const fits = w > 44 && h > 22;
         return (
-          <G key={item.id}>
+          <G key={item.id} onPress={onSelect ? () => onSelect(item.id) : undefined}>
             <Rect
               x={fp.x * scale}
               y={fp.y * scale}
@@ -100,9 +96,9 @@ export function FloorPlan({ layout, items, moves = [], width }: Props) {
               height={h}
               rx={5}
               fill={furnitureColors[item.type]}
-              stroke={colors.ink}
-              strokeOpacity={0.25}
-              strokeWidth={1}
+              stroke={item.id === selectedId ? colors.accent : colors.ink}
+              strokeOpacity={item.id === selectedId ? 1 : 0.25}
+              strokeWidth={item.id === selectedId ? 3 : 1}
             />
             <FacingMarker item={item} scale={scale} />
             {fits ? (
@@ -113,7 +109,7 @@ export function FloorPlan({ layout, items, moves = [], width }: Props) {
                 fill={colors.ink}
                 textAnchor="middle"
               >
-                {fitLabel(item.label, w)}
+                {item.label}
               </SvgText>
             ) : null}
           </G>

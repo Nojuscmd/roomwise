@@ -34,6 +34,9 @@ const MIN_MOVE_GAIN = 0.03;
 /** Beds and wardrobes are heavy: moving them has to be clearly worth the effort. */
 const HEAVY_TYPES = new Set<FurnitureType>(['bed', 'wardrobe']);
 const MIN_HEAVY_MOVE_GAIN = 0.1;
+/** Score cost per cm moved, so small score differences never justify dragging furniture around. */
+const MOVE_COST_PER_CM = 0.00005;
+const HEAVY_MOVE_COST_PER_CM = 0.0002;
 /** A chair this close to a desk is treated as that desk's chair and moves with it. */
 const CHAIR_PATTERN = /chair|stool/i;
 const CHAIR_MAX_DESK_GAP_CM = 80;
@@ -67,6 +70,17 @@ export function candidatePlacements(item: Furniture, layout: RoomLayout): Furnit
     if (back === 'N') range(0, maxX, WALL_STEP_CM).forEach((x) => out.push(make(x, 0)));
     if (back === 'W') range(0, maxY, WALL_STEP_CM).forEach((y) => out.push(make(0, y)));
     if (back === 'E') range(0, maxY, WALL_STEP_CM).forEach((y) => out.push(make(maxX, y)));
+    if (item.type === 'bed') {
+      // A bed can also sit with its long side along any wall, as most beds in real rooms do.
+      range(0, maxX, WALL_STEP_CM).forEach((x) => {
+        out.push(make(x, 0));
+        out.push(make(x, maxY));
+      });
+      range(0, maxY, WALL_STEP_CM).forEach((y) => {
+        out.push(make(0, y));
+        out.push(make(maxX, y));
+      });
+    }
     if (FLOATING_TYPES.has(item.type)) {
       for (const x of range(0, maxX, FLOAT_STEP_CM)) {
         for (const y of range(0, maxY, FLOAT_STEP_CM)) out.push(make(x, y));
@@ -170,11 +184,13 @@ const scoreOf = (items: Furniture[], ctx: Context): number =>
 function pickBest(item: Furniture, others: Furniture[], ctx: Context): Furniture {
   let best: Furniture | null = null;
   let bestScore = -Infinity;
-  for (const cand of candidatePlacements(item, ctx.layout)) {
+  // Staying where it is is always an option, so a good spot is only left for a clear gain.
+  for (const cand of [item, ...candidatePlacements(item, ctx.layout)]) {
     if (!isValidWithChair(cand, others, ctx)) continue;
     const score = scoreOf([...others, cand], ctx);
-    // Tiny tie-breaker favouring the smallest change from where the item already is.
-    const adjusted = score - distanceMoved(cand, item) * 1e-6;
+    // Prefer the smallest change from where the item already is; heavy items cost more to move.
+    const perCm = HEAVY_TYPES.has(item.type) ? HEAVY_MOVE_COST_PER_CM : MOVE_COST_PER_CM;
+    const adjusted = score - distanceMoved(cand, item) * perCm;
     if (adjusted > bestScore) {
       bestScore = adjusted;
       best = cand;

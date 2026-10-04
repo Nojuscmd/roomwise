@@ -12,6 +12,7 @@ export interface RoomRow {
   analysis_confidence: number | null;
   analyzed_at: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ArrangementRow {
@@ -127,6 +128,18 @@ export async function analyzeRoom(roomId: string): Promise<void> {
     throw new ApiError(FRIENDLY[code ?? ''] ?? 'Analysis failed. Please try again.', code);
   }
   if (!data?.analysis) throw new ApiError(FRIENDLY.analysis_failed!, 'analysis_failed');
+}
+
+/** Store the user's corrected layout in place of the model's raw detection. */
+export async function updateRoomAnalysis(
+  roomId: string,
+  analysis: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('rooms')
+    .update({ analysis_json: analysis, analysis_confidence: 1 })
+    .eq('id', roomId);
+  if (error) fail(error, 'Could not save your changes.');
 }
 
 export async function photoUrl(path: string): Promise<string | null> {

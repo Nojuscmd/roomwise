@@ -40,6 +40,7 @@ function Gate() {
       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       <Stack.Screen name="capture" options={{ title: 'New room', presentation: 'modal' }} />
       <Stack.Screen name="room/[id]" options={{ title: 'Room' }} />
+      <Stack.Screen name="edit-room" options={{ title: 'Correct detection' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
     </Stack>
   );
