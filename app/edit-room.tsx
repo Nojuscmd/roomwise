@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -40,6 +39,7 @@ import {
 } from '@/domain';
 import { getRoom, updateRoomAnalysis } from '@/lib/api';
 import { colors, radius, spacing, type } from '@/theme/theme';
+import { notify } from '@/lib/dialog';
 
 const WALL_NAMES: Record<Wall, string> = { N: 'north', E: 'east', S: 'south', W: 'west' };
 const FACING_NAMES: Record<Wall, string> = { N: 'up', E: 'right', S: 'down', W: 'left' };
@@ -186,7 +186,7 @@ export default function EditRoomScreen() {
       await updateRoomAnalysis(id, layoutToAnalysisJson(layout, notes));
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', (e as Error).message);
+      notify('Could not save', (e as Error).message);
     } finally {
       setSaving(false);
     }

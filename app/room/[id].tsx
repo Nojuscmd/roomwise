@@ -2,7 +2,6 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-rou
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -24,6 +23,7 @@ import {
   RoomRow,
   saveArrangement,
 } from '@/lib/api';
+import { confirmAction, notify } from '@/lib/dialog';
 import { colors, spacing, type } from '@/theme/theme';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -105,14 +105,14 @@ export default function RoomScreen() {
       void runAnalysis();
       return;
     }
-    Alert.alert(
-      'Analyse again?',
-      'This replaces the current detection with a new one. The result can differ a little each time.',
-      [
-        { text: 'Keep current', style: 'cancel' },
-        { text: 'Analyse again', onPress: () => void runAnalysis() },
-      ],
-    );
+    confirmAction({
+      title: 'Analyse again?',
+      message:
+        'This replaces the current detection with a new one. The result can differ a little each time.',
+      confirmLabel: 'Analyse again',
+      cancelLabel: 'Keep current',
+      onConfirm: () => void runAnalysis(),
+    });
   }
 
   async function save() {
@@ -122,7 +122,7 @@ export default function RoomScreen() {
       await saveArrangement(id, arrangement);
       setSaved(await listArrangements(id));
     } catch (e) {
-      Alert.alert('Could not save', (e as Error).message);
+      notify('Could not save', (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -130,21 +130,20 @@ export default function RoomScreen() {
 
   function confirmDelete() {
     if (!room) return;
-    Alert.alert('Delete this room?', 'The photo and all saved arrangements will be removed.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteRoom(room);
-            router.back();
-          } catch (e) {
-            Alert.alert('Could not delete', (e as Error).message);
-          }
-        },
+    confirmAction({
+      title: 'Delete this room?',
+      message: 'The photo and all saved arrangements will be removed.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteRoom(room);
+          router.back();
+        } catch (e) {
+          notify('Could not delete', (e as Error).message);
+        }
       },
-    ]);
+    });
   }
 
   if (!room && !error) {

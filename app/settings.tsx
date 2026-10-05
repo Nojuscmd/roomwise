@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button, Card, SegmentedControl } from '@/components/ui';
 import { Mode } from '@/domain';
 import { getPreferences, Preferences, savePreferences } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, type } from '@/theme/theme';
+import { notify } from '@/lib/dialog';
 
 export default function Settings() {
   const [prefs, setPrefs] = useState<Preferences | null>(null);
@@ -22,7 +23,7 @@ export default function Settings() {
       await savePreferences(next);
     } catch (e) {
       setPrefs(previous);
-      Alert.alert('Could not save', (e as Error).message);
+      notify('Could not save', (e as Error).message);
     }
   }
 
