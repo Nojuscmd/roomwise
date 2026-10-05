@@ -46,19 +46,55 @@ function keepInside(item: Furniture, layout: RoomLayout): Furniture {
   };
 }
 
+/** Ids of the other items whose footprint overlaps this item's footprint. */
+function overlapping(item: Furniture, items: Furniture[]): Set<string> {
+  const fp = footprint(item);
+  return new Set(
+    items.filter((o) => o.id !== item.id && intersects(fp, footprint(o))).map((o) => o.id),
+  );
+}
+
+/**
+ * Apply a change to one item. Items cannot be stacked: if the result would overlap an item it was
+ * not already overlapping, the layout is returned unchanged (the very same object, so callers can
+ * detect a refused edit). An item the photo analysis already placed on top of another can still be
+ * moved or resized to get out of the overlap.
+ */
 function updateItem(
   layout: RoomLayout,
   id: string,
   change: (item: Furniture) => Furniture,
 ): RoomLayout {
-  return {
-    ...layout,
-    items: layout.items.map((item) => (item.id === id ? keepInside(change(item), layout) : item)),
-  };
+  const before = layout.items.find((i) => i.id === id);
+  if (!before) return layout;
+  const after = keepInside(change(before), layout);
+  const alreadyOverlapping = overlapping(before, layout.items);
+  for (const otherId of overlapping(after, layout.items)) {
+    if (!alreadyOverlapping.has(otherId)) return layout;
+  }
+  return { ...layout, items: layout.items.map((item) => (item.id === id ? after : item)) };
 }
 
+/** True when an edit changed nothing because it was refused or had no effect. */
+export const isRefused = (before: RoomLayout, after: RoomLayout): boolean => before === after;
+
+/**
+ * Move an item. If the full step would overlap a neighbour, slide as far as it can go instead, so
+ * an item can always be pushed right up against the thing next to it. Refused (same layout object
+ * back) only when it cannot move at all.
+ */
 export function moveItem(layout: RoomLayout, id: string, dxCm: number, dyCm: number): RoomLayout {
-  return updateItem(layout, id, (i) => ({ ...i, xCm: i.xCm + dxCm, yCm: i.yCm + dyCm }));
+  const steps = Math.max(Math.abs(Math.round(dxCm)), Math.abs(Math.round(dyCm)));
+  for (let k = steps; k >= 1; k--) {
+    const f = k / steps;
+    const next = updateItem(layout, id, (i) => ({
+      ...i,
+      xCm: i.xCm + dxCm * f,
+      yCm: i.yCm + dyCm * f,
+    }));
+    if (next !== layout) return next;
+  }
+  return layout;
 }
 
 /** Turn an item a quarter turn clockwise. Does nothing if it would no longer fit the room. */
@@ -180,6 +216,21 @@ export function addOpening(
     offsetCm: Math.round((length - widthCm) / 2),
   };
   return { layout: { ...layout, openings: [...layout.openings, opening] }, id };
+}
+
+export const MIN_OPENING_CM = 40;
+
+/** Make a door or window wider or narrower, keeping it on its wall. */
+export function resizeOpening(layout: RoomLayout, id: string, dWidthCm: number): RoomLayout {
+  return {
+    ...layout,
+    openings: layout.openings.map((o) => {
+      if (o.id !== id) return o;
+      const length = o.wall === 'N' || o.wall === 'S' ? layout.room.widthCm : layout.room.depthCm;
+      const widthCm = clamp(o.widthCm + dWidthCm, MIN_OPENING_CM, length);
+      return { ...o, widthCm, offsetCm: clamp(o.offsetCm, 0, length - widthCm) };
+    }),
+  };
 }
 
 export function removeOpening(layout: RoomLayout, id: string): RoomLayout {

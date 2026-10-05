@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import {
   addOpening,
   cycleOpeningWall,
   FURNITURE_TYPES,
+  isRefused,
   layoutToAnalysisJson,
   moveItem,
   moveOpening,
@@ -27,6 +28,7 @@ import {
   removeOpening,
   renameItem,
   resizeItem,
+  resizeOpening,
   rotateItem,
   RoomLayout,
   setItemType,
@@ -94,6 +96,27 @@ export default function EditRoomScreen() {
   const [depthText, setDepthText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
+
+  /** Apply an edit; if the layout refused it (items cannot be stacked), say so briefly. */
+  const applyEdit = useCallback((before: RoomLayout, after: RoomLayout) => {
+    if (isRefused(before, after)) {
+      setNotice('Blocked: that would put it on top of another item.');
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      noticeTimer.current = setTimeout(() => setNotice(null), 2500);
+      return;
+    }
+    setNotice(null);
+    setLayout(after);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,6 +200,7 @@ export default function EditRoomScreen() {
           selectedId={selectedId}
           onSelect={setSelectedId}
         />
+        {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -219,44 +243,44 @@ export default function EditRoomScreen() {
                 title="←"
                 variant="secondary"
                 style={styles.small}
-                onPress={() => setLayout(moveItem(layout, selected.id, -NUDGE_CM, 0))}
+                onPress={() => applyEdit(layout, moveItem(layout, selected.id, -NUDGE_CM, 0))}
               />
               <Button
                 title="↑"
                 variant="secondary"
                 style={styles.small}
-                onPress={() => setLayout(moveItem(layout, selected.id, 0, -NUDGE_CM))}
+                onPress={() => applyEdit(layout, moveItem(layout, selected.id, 0, -NUDGE_CM))}
               />
               <Button
                 title="↓"
                 variant="secondary"
                 style={styles.small}
-                onPress={() => setLayout(moveItem(layout, selected.id, 0, NUDGE_CM))}
+                onPress={() => applyEdit(layout, moveItem(layout, selected.id, 0, NUDGE_CM))}
               />
               <Button
                 title="→"
                 variant="secondary"
                 style={styles.small}
-                onPress={() => setLayout(moveItem(layout, selected.id, NUDGE_CM, 0))}
+                onPress={() => applyEdit(layout, moveItem(layout, selected.id, NUDGE_CM, 0))}
               />
             </View>
 
             <Button
               title={`Turn 90° (front faces ${FACING_NAMES[selected.facing]})`}
               variant="secondary"
-              onPress={() => setLayout(rotateItem(layout, selected.id))}
+              onPress={() => applyEdit(layout, rotateItem(layout, selected.id))}
             />
 
             <Text style={type.caption}>Size</Text>
             <Stepper
               label={`Width ${selected.widthCm} cm`}
-              onMinus={() => setLayout(resizeItem(layout, selected.id, -NUDGE_CM, 0))}
-              onPlus={() => setLayout(resizeItem(layout, selected.id, NUDGE_CM, 0))}
+              onMinus={() => applyEdit(layout, resizeItem(layout, selected.id, -NUDGE_CM, 0))}
+              onPlus={() => applyEdit(layout, resizeItem(layout, selected.id, NUDGE_CM, 0))}
             />
             <Stepper
               label={`Depth ${selected.depthCm} cm`}
-              onMinus={() => setLayout(resizeItem(layout, selected.id, 0, -NUDGE_CM))}
-              onPlus={() => setLayout(resizeItem(layout, selected.id, 0, NUDGE_CM))}
+              onMinus={() => applyEdit(layout, resizeItem(layout, selected.id, 0, -NUDGE_CM))}
+              onPlus={() => applyEdit(layout, resizeItem(layout, selected.id, 0, NUDGE_CM))}
             />
 
             <Button
@@ -326,6 +350,11 @@ export default function EditRoomScreen() {
               <Text style={type.body}>
                 {o.kind === 'door' ? 'Door' : 'Window'} on the {WALL_NAMES[o.wall]} wall
               </Text>
+              <Stepper
+                label={`Width ${o.widthCm} cm`}
+                onMinus={() => setLayout(resizeOpening(layout, o.id, -OPENING_STEP_CM))}
+                onPlus={() => setLayout(resizeOpening(layout, o.id, OPENING_STEP_CM))}
+              />
               <View style={styles.row}>
                 <Button
                   title="◀"
@@ -386,6 +415,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
+  notice: { ...type.caption, color: colors.warn, marginTop: spacing.xs },
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl * 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

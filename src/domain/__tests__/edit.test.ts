@@ -8,6 +8,8 @@ import {
   moveOpening,
   removeItem,
   removeOpening,
+  resizeOpening,
+  isRefused,
   renameItem,
   resizeItem,
   rotateItem,
@@ -40,10 +42,11 @@ describe('item edits', () => {
   });
 
   it('rotates a quarter turn clockwise and stays inside the room', () => {
-    const turned = rotateItem(layout(), 'desk');
+    const open = makeLayout([bed(), desk({ yCm: 250 })]);
+    const turned = rotateItem(open, 'desk');
     expect(find(turned, 'desk').facing).toBe('N');
     expect(insideRoom(footprint(find(turned, 'desk')), turned.room)).toBe(true);
-    let spun = layout();
+    let spun = open;
     for (let i = 0; i < 4; i++) spun = rotateItem(spun, 'desk');
     expect(find(spun, 'desk').facing).toBe('W');
   });
@@ -134,5 +137,60 @@ describe('layoutToAnalysisJson', () => {
       edited.items.map((i) => ({ ...i, id: '' })),
     );
     expect(parsed.layout.openings).toHaveLength(edited.openings.length);
+  });
+});
+
+describe('collisions', () => {
+  // bed fills x 130-290, y 0-200; a second bed-sized item sits to its right at x 300.
+  const crowded = () => makeLayout([bed(), desk({ xCm: 300, yCm: 0, facing: 'W' })]);
+
+  it('refuses a move that would stack one item on another', () => {
+    const l = crowded();
+    // The desk starts 10 cm from the bed, so a 50 cm push left slides to touching, not overlapping.
+    const slid = moveItem(l, 'desk', -50, 0);
+    expect(find(slid, 'desk').xCm).toBe(290);
+    // Now it touches the bed, so there is nowhere left to go.
+    expect(isRefused(slid, moveItem(slid, 'desk', -10, 0))).toBe(true);
+  });
+
+  it('slides to touch a neighbour when the gap is smaller than one step', () => {
+    const l = makeLayout([bed(), desk({ xCm: 297, yCm: 0, facing: 'W' })]);
+    const result = moveItem(l, 'desk', -10, 0);
+    expect(find(result, 'desk').xCm).toBe(290);
+  });
+
+  it('allows moves into free space', () => {
+    const l = crowded();
+    const result = moveItem(l, 'desk', 0, 100);
+    expect(isRefused(l, result)).toBe(false);
+    expect(find(result, 'desk').yCm).toBe(100);
+  });
+
+  it('refuses to rotate or resize into a neighbour', () => {
+    const l = makeLayout([bed(), desk({ xCm: 292, yCm: 0, facing: 'W' })]);
+    expect(isRefused(l, resizeItem(l, 'bed', 20, 0))).toBe(true);
+    const tight = makeLayout([bed({ xCm: 0, yCm: 0 }), desk({ xCm: 170, yCm: 100, facing: 'W' })]);
+    expect(isRefused(tight, rotateItem(tight, 'bed'))).toBe(true);
+  });
+
+  it('lets the user move an item out of an existing overlap, but not into another', () => {
+    const l = makeLayout([bed(), desk({ xCm: 250, yCm: 0, facing: 'W' })]);
+    const out = moveItem(l, 'desk', 100, 0);
+    expect(isRefused(l, out)).toBe(false);
+    expect(find(out, 'desk').xCm).toBe(340);
+  });
+});
+
+describe('opening size', () => {
+  it('widens and narrows within limits and stays on the wall', () => {
+    const l = makeLayout([]);
+    const wider = resizeOpening(l, 'door', 30);
+    expect(wider.openings.find((o) => o.id === 'door')?.widthCm).toBe(120);
+    const tiny = resizeOpening(l, 'door', -1000);
+    expect(tiny.openings.find((o) => o.id === 'door')?.widthCm).toBe(40);
+    const huge = resizeOpening(l, 'door', 5000);
+    const door = huge.openings.find((o) => o.id === 'door')!;
+    expect(door.widthCm).toBe(400);
+    expect(door.offsetCm).toBe(0);
   });
 });
