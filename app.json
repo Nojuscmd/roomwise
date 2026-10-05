@@ -22,7 +22,21 @@
       "bundleIdentifier": "com.example.roomwise"
     },
     "android": {
-      "package": "com.example.roomwise"
+      "package": "com.example.roomwise",
+      "permissions": ["android.permission.RECORD_AUDIO", "android.permission.RECORD_AUDIO"]
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ca3ad9dc-63f3-4443-8d05-7cabf9617b25"
+      }
+    },
+    "owner": "nojuscmd",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ca3ad9dc-63f3-4443-8d05-7cabf9617b25"
     }
   }
 }
