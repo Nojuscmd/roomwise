@@ -20,6 +20,7 @@ Scores of 0.9 or more count as satisfied.
 | `window_glare`   | 2      | Desk faces sideways to windows, not toward or away from them         |
 | `window_blocked` | 1      | Tall furniture (wardrobe, shelf) does not stand in front of a window |
 | `tv_viewing`     | 1      | Sofa faces the TV, 1.8 to 3.5 m away                                 |
+| `tv_glare`       | 2      | TV not in front of a window and its screen not facing one            |
 
 ## Feng shui mode
 

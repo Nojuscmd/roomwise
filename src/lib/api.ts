@@ -6,6 +6,7 @@ export interface RoomRow {
   id: string;
   name: string;
   photo_path: string | null;
+  extra_photo_paths: string[];
   width_cm: number | null;
   depth_cm: number | null;
   analysis_json: unknown | null;
@@ -66,7 +67,10 @@ export async function getRoom(id: string): Promise<RoomRow> {
 }
 
 export async function deleteRoom(room: RoomRow): Promise<void> {
-  if (room.photo_path) await supabase.storage.from('room-photos').remove([room.photo_path]);
+  const paths = [room.photo_path, ...(room.extra_photo_paths ?? [])].filter(
+    (p): p is string => !!p,
+  );
+  if (paths.length > 0) await supabase.storage.from('room-photos').remove(paths);
   const { error } = await supabase.from('rooms').delete().eq('id', room.id);
   if (error) fail(error, 'Could not delete the room.');
 }
@@ -81,34 +85,48 @@ async function prepareImage(uri: string): Promise<ArrayBuffer> {
   return response.arrayBuffer();
 }
 
+export const MAX_PHOTOS = 4;
+
 export async function createRoom(input: {
   name: string;
-  photoUri: string;
+  photoUris: string[];
   widthCm?: number;
   depthCm?: number;
 }): Promise<RoomRow> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new ApiError(FRIENDLY.unauthorized!, 'unauthorized');
+  const uris = input.photoUris.slice(0, MAX_PHOTOS);
+  if (uris.length === 0) throw new ApiError('Add at least one photo.');
 
-  const path = `${userData.user.id}/${Date.now()}.jpg`;
-  const bytes = await prepareImage(input.photoUri);
-  const upload = await supabase.storage
-    .from('room-photos')
-    .upload(path, bytes, { contentType: 'image/jpeg' });
-  if (upload.error) fail(upload.error, 'Could not upload the photo.');
+  const stamp = Date.now();
+  const paths: string[] = [];
+  const cleanup = () => supabase.storage.from('room-photos').remove(paths);
+  for (const [i, uri] of uris.entries()) {
+    const path = `${userData.user.id}/${stamp}-${i}.jpg`;
+    const bytes = await prepareImage(uri);
+    const upload = await supabase.storage
+      .from('room-photos')
+      .upload(path, bytes, { contentType: 'image/jpeg' });
+    if (upload.error) {
+      await cleanup();
+      fail(upload.error, 'Could not upload the photo.');
+    }
+    paths.push(path);
+  }
 
   const { data, error } = await supabase
     .from('rooms')
     .insert({
       name: input.name,
-      photo_path: path,
+      photo_path: paths[0],
+      extra_photo_paths: paths.slice(1),
       width_cm: input.widthCm ?? null,
       depth_cm: input.depthCm ?? null,
     })
     .select('*')
     .single();
   if (error) {
-    await supabase.storage.from('room-photos').remove([path]);
+    await cleanup();
     fail(error, 'Could not save the room.');
   }
   return data as RoomRow;

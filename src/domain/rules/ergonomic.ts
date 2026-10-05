@@ -58,6 +58,31 @@ export const windowBlocked: Rule = {
       ),
 };
 
+/** A TV in front of a window, or with its screen facing one, is hard to watch in daylight. */
+export const tvGlare: Rule = {
+  id: 'tv_glare',
+  modes: ['ergonomic', 'feng_shui'],
+  evaluate: ({ room, openings, items }) => {
+    const windows = openings.filter((o) => o.kind === 'window');
+    if (windows.length === 0) return [];
+    return items
+      .filter((i) => i.type === 'tv_unit')
+      .map((tv) => {
+        const inFrontOfWindow = windows.some((w) =>
+          intersects(footprint(tv), openingZone(w, room, 60)),
+        );
+        const screenFacesWindow = windows.some((w) => w.wall === tv.facing);
+        return makeResult(
+          'tv_glare',
+          [tv.id],
+          inFrontOfWindow ? 0 : screenFacesWindow ? 0.5 : 1,
+          2,
+          'Keep the TV out of the window light: not in front of a window and with its screen not facing one, to avoid glare and reflections.',
+        );
+      });
+  },
+};
+
 const IDEAL_TV_MIN_CM = 180;
 const IDEAL_TV_MAX_CM = 350;
 

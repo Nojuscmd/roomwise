@@ -1,9 +1,9 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, ErrorNotice } from '@/components/ui';
-import { analyzeRoom, createRoom } from '@/lib/api';
+import { analyzeRoom, createRoom, MAX_PHOTOS } from '@/lib/api';
 import { colors, radius, spacing, type } from '@/theme/theme';
 
 const parseCm = (s: string): number | undefined => {
@@ -13,7 +13,7 @@ const parseCm = (s: string): number | undefined => {
 
 export default function Capture() {
   const router = useRouter();
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [widthM, setWidthM] = useState('');
   const [depthM, setDepthM] = useState('');
@@ -32,13 +32,21 @@ export default function Capture() {
       );
       return;
     }
-    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.9 };
+    const remaining = MAX_PHOTOS - photos.length;
+    if (remaining <= 0) return;
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ['images'],
+      quality: 0.9,
+      allowsMultipleSelection: source === 'library',
+      selectionLimit: remaining,
+    };
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options);
-    const uri = result.assets?.[0]?.uri;
-    if (!result.canceled && uri) setPhotoUri(uri);
+    if (result.canceled) return;
+    const added = (result.assets ?? []).map((a) => a.uri).slice(0, remaining);
+    setPhotos((current) => [...current, ...added].slice(0, MAX_PHOTOS));
   }
 
   const w = parseCm(widthM);
@@ -46,16 +54,16 @@ export default function Capture() {
   const dimsOk =
     (!widthM && !depthM) ||
     (w !== undefined && d !== undefined && w >= 150 && w <= 2000 && d >= 150 && d <= 2000);
-  const canSubmit = !!photoUri && name.trim().length > 0 && dimsOk;
+  const canSubmit = photos.length > 0 && name.trim().length > 0 && dimsOk;
 
   async function submit() {
-    if (!photoUri) return;
+    if (photos.length === 0) return;
     setBusy(true);
     setError(null);
     try {
       const room = await createRoom({
         name: name.trim(),
-        photoUri,
+        photoUris: photos,
         widthCm: widthM ? w : undefined,
         depthCm: depthM ? d : undefined,
       });
@@ -74,12 +82,26 @@ export default function Capture() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {photoUri ? (
-        <Image
-          source={{ uri: photoUri }}
-          style={styles.preview}
-          accessibilityLabel="Selected room photo"
-        />
+      {photos.length > 0 ? (
+        <View style={styles.thumbs}>
+          {photos.map((uri, i) => (
+            <View key={uri} style={styles.thumbWrap}>
+              <Image
+                source={{ uri }}
+                style={styles.thumb}
+                accessibilityLabel={`Room photo ${i + 1}`}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Remove photo ${i + 1}`}
+                onPress={() => setPhotos((current) => current.filter((p) => p !== uri))}
+                style={styles.remove}
+              >
+                <Text style={styles.removeText}>✕</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
       ) : (
         <View style={[styles.preview, styles.placeholder]}>
           <Text style={type.caption}>
@@ -87,13 +109,26 @@ export default function Capture() {
           </Text>
         </View>
       )}
+      <Text style={type.caption}>
+        {photos.length === 0
+          ? 'Add up to 4 photos from different corners. More angles make the analysis more reliable.'
+          : photos.length < MAX_PHOTOS
+            ? `${photos.length} of ${MAX_PHOTOS} photos. Add another angle to cover walls the first one hides. The first photo decides which wall is "up" on the plan.`
+            : `${MAX_PHOTOS} of ${MAX_PHOTOS} photos. Remove one to add another.`}
+      </Text>
 
       <View style={styles.row}>
-        <Button title="Take photo" onPress={() => pick('camera')} style={{ flex: 1 }} />
         <Button
-          title="Choose photo"
+          title={photos.length === 0 ? 'Take photo' : 'Add photo'}
+          onPress={() => pick('camera')}
+          disabled={photos.length >= MAX_PHOTOS}
+          style={{ flex: 1 }}
+        />
+        <Button
+          title="Choose photos"
           variant="secondary"
           onPress={() => pick('library')}
+          disabled={photos.length >= MAX_PHOTOS}
           style={{ flex: 1 }}
         />
       </View>
@@ -141,7 +176,7 @@ export default function Capture() {
       <Button title="Analyse room" onPress={submit} loading={busy} disabled={!canSubmit} />
       {busy ? (
         <Text style={[type.caption, { textAlign: 'center' }]}>
-          Uploading and analysing. This takes a few seconds.
+          Uploading and analysing. With several photos this can take up to a minute.
         </Text>
       ) : null}
     </ScrollView>
@@ -156,6 +191,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: colors.line,
   },
+  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  thumbWrap: { width: '48%', aspectRatio: 4 / 3 },
+  thumb: { width: '100%', height: '100%', borderRadius: radius.md, backgroundColor: colors.line },
+  remove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   placeholder: { alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.sm },
   input: {

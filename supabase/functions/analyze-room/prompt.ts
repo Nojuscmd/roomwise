@@ -1,4 +1,14 @@
 // Shared by the Edge Function and scripts/test-analysis.ts so both use the identical prompt.
+/** Added when a room has several photos. */
+export const MULTI_PHOTO_NOTE = (count: number) => `
+
+You are given ${count} photos of the SAME room, taken from different positions. Combine them into ONE
+layout: every piece of furniture, door and window appears exactly once, even if it is visible in
+several photos. Use the first photo to decide which wall is north (the wall in front of the camera in
+photo 1); keep that orientation for the whole room. Use the other photos to see walls, corners and
+furniture that photo 1 hides, and to get sizes and positions more accurately. Raise "confidence"
+when the photos together cover the whole room.`;
+
 export const ROOM_ANALYSIS_PROMPT = `You are analysing a photo of a room to help plan its furniture layout.
 Return ONLY a JSON object (no prose, no markdown fences) with this exact shape:
 

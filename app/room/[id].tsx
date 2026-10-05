@@ -33,9 +33,11 @@ export default function RoomScreen() {
   const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
   const planWidth = Math.min(screenWidth - spacing.md * 4, 420);
+  const photoWidth = screenWidth - spacing.md * 2;
 
   const [room, setRoom] = useState<RoomRow | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoIndex, setPhotoIndex] = useState(0);
   const [saved, setSaved] = useState<ArrangementRow[]>([]);
   const [mode, setMode] = useState<Mode>('ergonomic');
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +55,10 @@ export default function RoomScreen() {
       setRoom(r);
       setSaved(arrangements);
       setMode(prefs.default_mode);
-      setPhoto(r.photo_path ? await photoUrl(r.photo_path) : null);
+      const paths = [r.photo_path, ...(r.extra_photo_paths ?? [])].filter((p): p is string => !!p);
+      const urls = await Promise.all(paths.map((p) => photoUrl(p)));
+      setPhotos(urls.filter((u): u is string => !!u));
+      setPhotoIndex(0);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -163,8 +168,32 @@ export default function RoomScreen() {
     <ScrollView contentContainerStyle={styles.content}>
       <Stack.Screen options={{ title: room.name }} />
 
-      {photo ? (
-        <Image source={{ uri: photo }} style={styles.photo} accessibilityLabel="Room photo" />
+      {photos.length > 0 ? (
+        <View>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) =>
+              setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / photoWidth))
+            }
+            style={{ width: photoWidth, borderRadius: 20 }}
+          >
+            {photos.map((uri, i) => (
+              <Image
+                key={uri}
+                source={{ uri }}
+                style={[styles.photo, { width: photoWidth }]}
+                accessibilityLabel={`Room photo ${i + 1} of ${photos.length}`}
+              />
+            ))}
+          </ScrollView>
+          {photos.length > 1 ? (
+            <Text style={[type.caption, { textAlign: 'center', marginTop: spacing.xs }]}>
+              Photo {photoIndex + 1} of {photos.length}. Swipe sideways to see the others.
+            </Text>
+          ) : null}
+        </View>
       ) : null}
       {error ? <ErrorNotice message={error} /> : null}
 
@@ -282,5 +311,5 @@ export default function RoomScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
-  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: 20, backgroundColor: colors.line },
+  photo: { aspectRatio: 4 / 3, borderRadius: 20, backgroundColor: colors.line },
 });

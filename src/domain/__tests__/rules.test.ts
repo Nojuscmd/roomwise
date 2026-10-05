@@ -1,5 +1,18 @@
 import { evaluateLayout } from '../rules';
+import { Furniture } from '../types';
 import { bed, desk, makeLayout, wardrobe } from './fixtures';
+
+const tv = (over: Partial<Furniture> = {}): Furniture => ({
+  id: 'tv',
+  type: 'tv_unit',
+  label: 'TV unit',
+  xCm: 0,
+  yCm: 100,
+  widthCm: 140,
+  depthCm: 40,
+  facing: 'E',
+  ...over,
+});
 
 const find = (results: ReturnType<typeof evaluateLayout>['results'], ruleId: string) =>
   results.filter((r) => r.ruleId === ruleId);
@@ -56,6 +69,28 @@ describe('ergonomic rules', () => {
   it('does not apply feng shui rules in ergonomic mode', () => {
     const results = evaluateLayout(makeLayout([bed()]), 'ergonomic').results;
     expect(find(results, 'bed_headboard')).toHaveLength(0);
+  });
+});
+
+describe('tv glare', () => {
+  const score = (item: Furniture, mode: 'ergonomic' | 'feng_shui' = 'ergonomic') =>
+    find(evaluateLayout(makeLayout([item]), mode).results, 'tv_glare')[0]?.score;
+
+  it('is happy when the TV is away from the window and not facing it', () => {
+    expect(score(tv())).toBe(1);
+  });
+
+  it('penalises a TV standing in front of a window', () => {
+    expect(score(tv({ xCm: 150, yCm: 0, facing: 'S' }))).toBe(0);
+  });
+
+  it('penalises a screen that faces a window', () => {
+    // On the south wall facing north, toward the window on the north wall.
+    expect(score(tv({ xCm: 130, yCm: 310, facing: 'N' }))).toBe(0.5);
+  });
+
+  it('applies in feng shui mode too', () => {
+    expect(score(tv({ xCm: 150, yCm: 0, facing: 'S' }), 'feng_shui')).toBe(0);
   });
 });
 

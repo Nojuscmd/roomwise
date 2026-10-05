@@ -9,7 +9,7 @@
 // Secrets: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { ROOM_ANALYSIS_PROMPT } from './prompt.ts';
+import { MULTI_PHOTO_NOTE, ROOM_ANALYSIS_PROMPT } from './prompt.ts';
 
 const MODEL = Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-sonnet-5-5';
 const MAX_ANALYSES_PER_HOUR = 10;
@@ -78,19 +78,28 @@ Deno.serve(async (req) => {
 
   const { data: room, error: roomError } = await supabase
     .from('rooms')
-    .select('id, photo_path, width_cm, depth_cm')
+    .select('id, photo_path, extra_photo_paths, width_cm, depth_cm')
     .eq('id', roomId)
     .single();
   if (roomError || !room) return json({ error: 'room_not_found' }, 404);
   if (!room.photo_path) return json({ error: 'no_photo' }, 400);
 
-  const { data: file, error: fileError } = await supabase.storage
-    .from('room-photos')
-    .download(room.photo_path);
-  if (fileError || !file) return json({ error: 'photo_not_found' }, 404);
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const mediaType = room.photo_path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  // Main photo first (it defines which wall is north), then up to three extra photos.
+  const paths: string[] = [room.photo_path, ...(room.extra_photo_paths ?? [])].slice(0, 4);
+  const images: { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }[] =
+    [];
+  for (const path of paths) {
+    const { data: file, error: fileError } = await supabase.storage
+      .from('room-photos')
+      .download(path);
+    if (fileError || !file) return json({ error: 'photo_not_found' }, 404);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const mediaType = path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+    images.push({
+      type: 'image',
+      source: { type: 'base64', media_type: mediaType, data: toBase64(bytes) },
+    });
+  }
 
   const hint =
     room.width_cm && room.depth_cm
@@ -108,16 +117,19 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2000,
+        max_tokens: 4000,
         messages: [
           {
             role: 'user',
             content: [
+              ...images,
               {
-                type: 'image',
-                source: { type: 'base64', media_type: mediaType, data: toBase64(bytes) },
+                type: 'text',
+                text:
+                  ROOM_ANALYSIS_PROMPT +
+                  (images.length > 1 ? MULTI_PHOTO_NOTE(images.length) : '') +
+                  hint,
               },
-              { type: 'text', text: ROOM_ANALYSIS_PROMPT + hint },
             ],
           },
         ],
@@ -132,7 +144,14 @@ Deno.serve(async (req) => {
       .filter((b: { type: string }) => b.type === 'text')
       .map((b: { text: string }) => b.text)
       .join('');
-    analysis = extractJson(text) as Record<string, unknown>;
+    if (result.stop_reason === 'max_tokens')
+      console.error('Model output was cut off at max_tokens');
+    try {
+      analysis = extractJson(text) as Record<string, unknown>;
+    } catch (parseError) {
+      console.error('Unreadable model output:', text.slice(0, 500));
+      throw parseError;
+    }
   } catch (err) {
     console.error('Analysis error', err);
     return json({ error: 'analysis_failed' }, 502);
