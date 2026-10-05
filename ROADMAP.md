@@ -3,18 +3,25 @@
 This is your path from this scaffold to a finished, demo-ready app. Work top to bottom. Each week
 ends with a "Done when" check, so you always know whether you are on track.
 
-## Where things stand today (Oct 2)
+## Where things stand (Oct 5)
 
-| Piece                                                     | State                                                                                                                                                                |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rules engine, solver, AI-output validator (`src/domain`)  | **Written and verified.** 49 unit tests pass and the code type-checks in strict mode.                                                                                |
-| Database schema with Row Level Security, storage policies | Written, **not yet run** against a real Supabase project.                                                                                                            |
-| `analyze-room` Edge Function, prompt-testing script       | Written, **not yet run** (needs your API key).                                                                                                                       |
-| App screens, floor plan, API layer                        | Written, **not yet run on a device.** Expect a few small fixes on first launch (package versions, a typo, a layout tweak). That is normal and is what Week 1 is for. |
-| CI (GitHub Actions)                                       | Written, will run on your first push.                                                                                                                                |
+Ahead of schedule: the app runs end to end on a real phone.
 
-What only you can do: create the GitHub repo, Supabase project and Anthropic API key, run the app on
-your phone, and photograph real rooms. Everything else, ask me and I will do it with you.
+| Piece                                     | State                                                                                                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Rules engine, solver, AI-output validator | **Working.** 79 unit tests. Rules include glare, TV glare, side tables, wall anchoring.               |
+| Database, Row Level Security, storage     | **Running** on Supabase (migrations 0001 and 0002: several photos per room).                          |
+| `analyze-room` Edge Function              | **Deployed.** Analyses one to four photos of a room together.                                         |
+| App: capture, analysis, plan, suggestions | **Working** on iPhone. Photo gallery, saved arrangements, correction screen (Week 4 is already done). |
+| Correction screen                         | Move, turn, resize, add and delete items; door and window editing; furniture cannot be stacked.       |
+| CI (GitHub Actions)                       | **Green** on every push.                                                                              |
+
+Still open: RLS check with a second account, `docs/` write-ups (architecture, results, security),
+units preference, empty and error states, furniture icons and L-shaped sofa, a test set of rooms with
+scores, a demo video, a friends-testing link (EAS Update), and the `v1.0.0` tag.
+
+What only you can do: photograph real rooms, test on your phone, ask friends to test, and talk to
+your professor about the AI-assistance note in the README.
 
 ---
 

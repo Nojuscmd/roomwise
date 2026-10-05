@@ -93,7 +93,6 @@ export function candidatePlacements(item: Furniture, layout: RoomLayout): Furnit
   return out;
 }
 
-
 type Companions = Map<string, Furniture>;
 
 /** Pair each desk with the chair standing closest to it, so the chair can follow the desk. */
@@ -109,7 +108,8 @@ function findCompanions(items: Furniture[]): Companions {
     }
     if (!nearest) continue;
     const current = best.get(nearest.desk.id);
-    if (!current || nearest.gap < current.gap) best.set(nearest.desk.id, { chair, gap: nearest.gap });
+    if (!current || nearest.gap < current.gap)
+      best.set(nearest.desk.id, { chair, gap: nearest.gap });
   }
   return new Map([...best].map(([deskId, { chair }]) => [deskId, chair]));
 }
