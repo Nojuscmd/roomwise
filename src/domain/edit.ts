@@ -9,6 +9,9 @@ export const MIN_ITEM_CM = 20;
 export const MAX_ITEM_CM = 400;
 export const NUDGE_CM = 10;
 
+/** Bounding box of a typical L-shaped (corner) sofa. */
+export const L_SOFA = { widthCm: 250, depthCm: 160, label: 'L-shaped sofa' } as const;
+
 const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v));
 
 /** Typical footprint (width x depth, cm) used when the user adds a missing item. */
@@ -132,7 +135,20 @@ export function renameItem(layout: RoomLayout, id: string, label: string): RoomL
 }
 
 export function setItemType(layout: RoomLayout, id: string, type: FurnitureType): RoomLayout {
-  return updateItem(layout, id, (i) => ({ ...i, type }));
+  return updateItem(layout, id, (i) => ({
+    ...i,
+    type,
+    chaise: type === 'sofa' ? i.chaise : undefined,
+  }));
+}
+
+/** Make a sofa straight (undefined) or L-shaped with the chaise on the sitter's left or right. */
+export function setChaise(
+  layout: RoomLayout,
+  id: string,
+  chaise: 'left' | 'right' | undefined,
+): RoomLayout {
+  return updateItem(layout, id, (i) => (i.type === 'sofa' ? { ...i, chaise } : i));
 }
 
 export function removeItem(layout: RoomLayout, id: string): RoomLayout {
@@ -149,6 +165,7 @@ function nextId(prefix: string, ids: string[]): string {
 export function addItem(
   layout: RoomLayout,
   type: FurnitureType,
+  extra: Partial<Pick<Furniture, 'widthCm' | 'depthCm' | 'label' | 'chaise'>> = {},
 ): { layout: RoomLayout; id: string } {
   const size = DEFAULT_SIZES[type];
   const base: Furniture = {
@@ -162,6 +179,7 @@ export function addItem(
     xCm: 0,
     yCm: 0,
     facing: 'S',
+    ...extra,
   };
   const step = 20;
   let placed = keepInside(base, layout);
@@ -280,6 +298,7 @@ export function layoutToAnalysisJson(layout: RoomLayout, notes: string): Record<
       widthCm: i.widthCm,
       depthCm: i.depthCm,
       facing: i.facing,
+      ...(i.chaise ? { chaise: i.chaise } : {}),
     })),
     // The user has checked and corrected this layout, so it is no longer a rough estimate.
     confidence: 1,

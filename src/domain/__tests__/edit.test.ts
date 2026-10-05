@@ -9,6 +9,8 @@ import {
   removeItem,
   removeOpening,
   resizeOpening,
+  setChaise,
+  L_SOFA,
   isRefused,
   renameItem,
   resizeItem,
@@ -192,5 +194,61 @@ describe('opening size', () => {
     const door = huge.openings.find((o) => o.id === 'door')!;
     expect(door.widthCm).toBe(400);
     expect(door.offsetCm).toBe(0);
+  });
+});
+
+describe('L-shaped sofas', () => {
+  const sofaLayout = () =>
+    makeLayout([
+      {
+        id: 's',
+        type: 'sofa',
+        label: 'Sofa',
+        xCm: 0,
+        yCm: 200,
+        widthCm: 200,
+        depthCm: 90,
+        facing: 'S',
+      },
+    ]);
+
+  it('sets and clears the chaise side, only on sofas', () => {
+    const l = setChaise(sofaLayout(), 's', 'left');
+    expect(find(l, 's').chaise).toBe('left');
+    expect(find(setChaise(l, 's', undefined), 's').chaise).toBeUndefined();
+    const notSofa = setChaise(layout(), 'bed', 'left');
+    expect(find(notSofa, 'bed').chaise).toBeUndefined();
+  });
+
+  it('drops the chaise when the type changes away from sofa', () => {
+    const l = setItemType(setChaise(sofaLayout(), 's', 'right'), 's', 'table');
+    expect(find(l, 's').chaise).toBeUndefined();
+  });
+
+  it('adds an L-shaped sofa with its own size', () => {
+    const { layout: l, id } = addItem(makeLayout([]), 'sofa', { ...L_SOFA, chaise: 'right' });
+    expect(find(l, id)).toMatchObject({
+      widthCm: 250,
+      depthCm: 160,
+      chaise: 'right',
+      type: 'sofa',
+    });
+  });
+
+  it('survives save and reload', () => {
+    const l = setChaise(sofaLayout(), 's', 'left');
+    const parsed = parseRoomAnalysis(layoutToAnalysisJson(l, ''));
+    expect(parsed.layout.items[0]?.chaise).toBe('left');
+  });
+
+  it('ignores a chaise the model puts on something that is not a sofa', () => {
+    const parsed = parseRoomAnalysis({
+      room: { widthCm: 400, depthCm: 350 },
+      furniture: [
+        { type: 'desk', widthCm: 120, depthCm: 60, xCm: 0, yCm: 0, facing: 'S', chaise: 'left' },
+        { type: 'sofa', widthCm: 200, depthCm: 90, xCm: 0, yCm: 100, facing: 'S', chaise: 'up' },
+      ],
+    });
+    expect(parsed.layout.items.map((i) => i.chaise)).toEqual([undefined, undefined]);
   });
 });

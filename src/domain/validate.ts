@@ -97,6 +97,8 @@ export function parseRoomAnalysis(input: unknown): RoomAnalysis {
     const fh = swap ? widthCm : depthCm;
     if (fw > room.widthCm || fh > room.depthCm) return;
     const type = parseType(raw.type);
+    const chaise =
+      type === 'sofa' && (raw.chaise === 'left' || raw.chaise === 'right') ? raw.chaise : undefined;
     items.push({
       id: `f${index + 1}`,
       type,
@@ -106,6 +108,7 @@ export function parseRoomAnalysis(input: unknown): RoomAnalysis {
       facing,
       xCm: clamp(num(raw.xCm) ?? 0, 0, room.widthCm - fw),
       yCm: clamp(num(raw.yCm) ?? 0, 0, room.depthCm - fh),
+      ...(chaise ? { chaise } : {}),
     });
   });
 

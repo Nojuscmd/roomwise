@@ -17,7 +17,7 @@ Return ONLY a JSON object (no prose, no markdown fences) with this exact shape:
   "openings": [ { "kind": "door" | "window", "wall": "N"|"E"|"S"|"W", "offsetCm": number, "widthCm": number } ],
   "furniture": [ { "type": "bed"|"desk"|"sofa"|"wardrobe"|"table"|"shelf"|"tv_unit"|"other",
                    "label": string, "xCm": number, "yCm": number, "widthCm": number, "depthCm": number,
-                   "facing": "N"|"E"|"S"|"W" } ],
+                   "facing": "N"|"E"|"S"|"W", "chaise"?: "left"|"right" } ],
   "confidence": number,
   "notes": string
 }
@@ -33,6 +33,8 @@ Coordinate system (top-down floor plan, centimetres):
 
 Rules:
 - Estimate sizes using typical furniture dimensions (e.g. double bed ~140x200, door ~90 wide, desk ~120x60).
+- For an L-shaped or corner sofa use type "sofa", give widthCm and depthCm of its full bounding box, and set
+  "chaise" to the side (as seen by a person sitting on it) where the long chaise part extends. Omit "chaise" for straight sofas.
 - Only include furniture you can actually see. Do not invent items. Unseen areas: say so in "notes".
 - Furniture cannot overlap: a wardrobe, chest or nightstand next to a bed sits beside or at the foot of it, never on top of it.
   Keep every footprint inside the room, and give each piece its own space.

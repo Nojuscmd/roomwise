@@ -2,6 +2,7 @@ import React from 'react';
 import Svg, { Defs, G, Line, Marker, Path, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { Furniture, Move, Opening, RoomLayout, center, footprint, openingZone } from '@/domain';
 import { colors, furnitureColors } from '@/theme/theme';
+import { FurnitureIcon } from './FurnitureIcon';
 
 interface Props {
   layout: Pick<RoomLayout, 'room' | 'openings'>;
@@ -100,6 +101,7 @@ export function FloorPlan({ layout, items, moves = [], width, selectedId, onSele
               strokeOpacity={item.id === selectedId ? 1 : 0.25}
               strokeWidth={item.id === selectedId ? 3 : 1}
             />
+            <FurnitureIcon item={item} scale={scale} />
             <FacingMarker item={item} scale={scale} />
             {fits ? (
               <SvgText

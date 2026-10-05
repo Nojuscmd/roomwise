@@ -49,6 +49,11 @@ export interface Furniture {
   depthCm: number;
   /** Direction the front of the item points. For a bed, the direction the feet point. */
   facing: Wall;
+  /**
+   * Only for sofas: set when it is L-shaped. The long chaise part extends to this side as seen by
+   * the person sitting on it. The footprint stays the full bounding box.
+   */
+  chaise?: 'left' | 'right' | undefined;
 }
 
 export interface RoomLayout {

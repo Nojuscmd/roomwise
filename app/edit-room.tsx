@@ -19,6 +19,7 @@ import {
   cycleOpeningWall,
   FURNITURE_TYPES,
   isRefused,
+  L_SOFA,
   layoutToAnalysisJson,
   moveItem,
   moveOpening,
@@ -31,6 +32,7 @@ import {
   resizeOpening,
   rotateItem,
   RoomLayout,
+  setChaise,
   setItemType,
   setRoomSize,
   TYPE_LABELS,
@@ -237,6 +239,31 @@ export default function EditRoomScreen() {
               ))}
             </View>
 
+            {selected.type === 'sofa' ? (
+              <>
+                <Text style={type.caption}>
+                  Shape (for an L-shaped sofa, the long part is on the side as you sit on it)
+                </Text>
+                <View style={styles.wrap}>
+                  <Chip
+                    label="Straight"
+                    active={!selected.chaise}
+                    onPress={() => setLayout(setChaise(layout, selected.id, undefined))}
+                  />
+                  <Chip
+                    label="L: long part left"
+                    active={selected.chaise === 'left'}
+                    onPress={() => setLayout(setChaise(layout, selected.id, 'left'))}
+                  />
+                  <Chip
+                    label="L: long part right"
+                    active={selected.chaise === 'right'}
+                    onPress={() => setLayout(setChaise(layout, selected.id, 'right'))}
+                  />
+                </View>
+              </>
+            ) : null}
+
             <Text style={type.caption}>Move by {NUDGE_CM} cm</Text>
             <View style={styles.row}>
               <Button
@@ -310,6 +337,14 @@ export default function EditRoomScreen() {
                 }}
               />
             ))}
+            <Chip
+              label="+ L-shaped sofa"
+              onPress={() => {
+                const result = addItem(layout, 'sofa', { ...L_SOFA, chaise: 'right' });
+                setLayout(result.layout);
+                setSelectedId(result.id);
+              }}
+            />
           </View>
         </Card>
 
