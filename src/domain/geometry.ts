@@ -34,6 +34,13 @@ export function overlapArea(a: Rect, b: Rect): number {
   return w > 0 && h > 0 ? w * h : 0;
 }
 
+/** Shortest distance between two rectangles (0 if they touch or overlap). */
+export function rectGap(a: Rect, b: Rect): number {
+  const dx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w));
+  const dy = Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h));
+  return Math.hypot(dx, dy);
+}
+
 export const intersects = (a: Rect, b: Rect): boolean => overlapArea(a, b) > 0;
 
 export const roomRect = (room: Room): Rect => ({ x: 0, y: 0, w: room.widthCm, h: room.depthCm });

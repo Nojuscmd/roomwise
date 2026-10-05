@@ -152,3 +152,27 @@ describe('desk chairs', () => {
     if (moves.length === 0) expect(items).toEqual(layout.items);
   });
 });
+
+describe('side tables follow the furniture they serve', () => {
+  const nightstand = {
+    id: 'ns',
+    type: 'other' as const,
+    label: 'Nightstand',
+    xCm: 330,
+    yCm: 280,
+    widthCm: 40,
+    depthCm: 40,
+    facing: 'S' as const,
+  };
+
+  it('puts a nightstand beside the bed', () => {
+    const layout = makeLayout([bed({ xCm: 0, yCm: 0 }), nightstand]);
+    const { items } = suggestArrangement(layout, 'ergonomic');
+    const placed = items.find((i) => i.id === 'ns')!;
+    const bedFp = footprint(items.find((i) => i.id === 'bed')!);
+    const fp = footprint(placed);
+    const gapX = Math.max(0, fp.x - (bedFp.x + bedFp.w), bedFp.x - (fp.x + fp.w));
+    const gapY = Math.max(0, fp.y - (bedFp.y + bedFp.h), bedFp.y - (fp.y + fp.h));
+    expect(Math.hypot(gapX, gapY)).toBeLessThanOrEqual(10);
+  });
+});

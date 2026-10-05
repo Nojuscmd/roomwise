@@ -94,6 +94,51 @@ describe('tv glare', () => {
   });
 });
 
+describe('side tables and wall anchoring', () => {
+  const sofa = (over: Partial<Furniture> = {}): Furniture => ({
+    id: 'sofa',
+    type: 'sofa',
+    label: 'Sofa',
+    xCm: 150,
+    yCm: 290,
+    widthCm: 200,
+    depthCm: 90,
+    facing: 'N',
+    ...over,
+  });
+  const table = (over: Partial<Furniture> = {}): Furniture => ({
+    id: 'side',
+    type: 'other',
+    label: 'Side table',
+    xCm: 100,
+    yCm: 310,
+    widthCm: 40,
+    depthCm: 40,
+    facing: 'N',
+    ...over,
+  });
+  const run = (items: Furniture[], ruleId: string) =>
+    find(evaluateLayout(makeLayout(items), 'ergonomic').results, ruleId);
+
+  it('likes a side table right beside the sofa', () => {
+    expect(run([sofa(), table({ xCm: 105 })], 'side_table_placement')[0]?.score).toBe(1);
+  });
+
+  it('dislikes a side table far from the sofa', () => {
+    const score = run([sofa({ xCm: 250 }), table({ xCm: 0 })], 'side_table_placement')[0]?.score;
+    expect(score).toBeLessThan(0.5);
+  });
+
+  it('ignores side tables when there is no sofa or bed', () => {
+    expect(run([table()], 'side_table_placement')).toHaveLength(0);
+  });
+
+  it('wants a sofa with its back to a wall', () => {
+    expect(run([sofa()], 'wall_anchoring')[0]?.score).toBe(1);
+    expect(run([sofa({ yCm: 150 })], 'wall_anchoring')[0]?.score).toBe(0.4);
+  });
+});
+
 describe('feng shui rules', () => {
   it('flags the coffin position (feet toward the door, in line with it)', () => {
     // Door on the south wall at x 40-130; bed feet point south and sit in that strip.

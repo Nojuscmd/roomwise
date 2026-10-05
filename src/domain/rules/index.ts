@@ -1,5 +1,12 @@
 import { Mode, Rule, RoomLayout, RuleResult } from '../types';
-import { bedSideClearance, doorClearance, frontClearance, noOverlap } from './common';
+import {
+  bedSideClearance,
+  doorClearance,
+  frontClearance,
+  noOverlap,
+  sideTablePlacement,
+  wallAnchoring,
+} from './common';
 import { tvGlare, tvViewing, windowBlocked, windowGlare } from './ergonomic';
 import { balance, bedDoorLine, bedHeadboard, commandPosition } from './fengShui';
 
@@ -8,6 +15,8 @@ export const ALL_RULES: readonly Rule[] = [
   frontClearance,
   bedSideClearance,
   doorClearance,
+  sideTablePlacement,
+  wallAnchoring,
   windowGlare,
   windowBlocked,
   tvViewing,

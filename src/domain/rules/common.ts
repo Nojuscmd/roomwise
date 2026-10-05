@@ -2,13 +2,15 @@ import {
   footprint,
   frontZone,
   freeFraction,
+  gapToBackWall,
   overlapArea,
   area,
   openingZone,
   sideZones,
+  rectGap,
   roomRect,
 } from '../geometry';
-import { FurnitureType, Rule } from '../types';
+import { Furniture, FurnitureType, Rule } from '../types';
 import { makeResult } from './result';
 
 /** Rules that apply regardless of mode. */
@@ -101,6 +103,68 @@ export const doorClearance: Rule = {
           free,
           3,
           `Keep the area inside the door (about ${DOOR_CLEARANCE_CM} cm) clear so it opens fully and the entry feels open.`,
+        );
+      }),
+};
+
+/** Small tables that belong beside a sofa or bed: "Side table", "Nightstand", "End table"... */
+const SIDE_TABLE_PATTERN = /side table|end table|bedside|night ?stand/i;
+export const isSideTable = (item: Furniture): boolean =>
+  (item.type === 'other' || item.type === 'table') && SIDE_TABLE_PATTERN.test(item.label);
+/** The furniture a side table serves. */
+export const SERVED_TYPES: ReadonlySet<FurnitureType> = new Set(['sofa', 'bed']);
+
+const SIDE_TABLE_NEAR_CM = 10;
+const SIDE_TABLE_FAR_CM = 120;
+
+export const sideTablePlacement: Rule = {
+  id: 'side_table_placement',
+  modes: ['ergonomic', 'feng_shui'],
+  evaluate: ({ items }) => {
+    const served = items.filter((i) => SERVED_TYPES.has(i.type));
+    if (served.length === 0) return [];
+    return items.filter(isSideTable).map((table) => {
+      const gap = Math.min(...served.map((s) => rectGap(footprint(table), footprint(s))));
+      const score =
+        gap <= SIDE_TABLE_NEAR_CM
+          ? 1
+          : Math.max(
+              0.3,
+              1 - (0.7 * (gap - SIDE_TABLE_NEAR_CM)) / (SIDE_TABLE_FAR_CM - SIDE_TABLE_NEAR_CM),
+            );
+      return makeResult(
+        'side_table_placement',
+        [table.id],
+        score,
+        1,
+        `Keep the ${table.label} right beside the sofa or bed it belongs to, within arm's reach.`,
+      );
+    });
+  },
+};
+
+const ANCHORED_TYPES = new Set<FurnitureType>(['sofa', 'tv_unit', 'shelf', 'wardrobe', 'bed']);
+const ANCHOR_TOLERANCE_CM = 15;
+
+/** Large pieces look and feel calmer with their back (a bed: back or long side) against a wall. */
+export const wallAnchoring: Rule = {
+  id: 'wall_anchoring',
+  modes: ['ergonomic', 'feng_shui'],
+  evaluate: ({ room, items }) =>
+    items
+      .filter((i) => ANCHORED_TYPES.has(i.type) || isSideTable(i))
+      .map((item) => {
+        const fp = footprint(item);
+        const gap =
+          item.type === 'bed'
+            ? Math.min(fp.x, fp.y, room.widthCm - (fp.x + fp.w), room.depthCm - (fp.y + fp.h))
+            : gapToBackWall(item, room);
+        return makeResult(
+          'wall_anchoring',
+          [item.id],
+          gap <= ANCHOR_TOLERANCE_CM ? 1 : 0.4,
+          2,
+          `Put the ${item.label} against a wall instead of floating in the room; it feels more stable and frees floor space.`,
         );
       }),
 };

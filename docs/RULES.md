@@ -6,12 +6,14 @@ Scores of 0.9 or more count as satisfied.
 
 ## Applied in both modes
 
-| Rule                 | Weight | Checks                                                           |
-| -------------------- | ------ | ---------------------------------------------------------------- |
-| `no_overlap`         | 3      | Items stay inside the room and do not overlap each other         |
-| `door_clearance`     | 3      | 90 cm in front of each door is free                              |
-| `front_clearance`    | 2      | Free space in front of desk (90), wardrobe (80), sofa/shelf (60) |
-| `bed_side_clearance` | 2      | At least 60 cm free beside one long side of the bed              |
+| Rule                   | Weight | Checks                                                                |
+| ---------------------- | ------ | --------------------------------------------------------------------- |
+| `no_overlap`           | 3      | Items stay inside the room and do not overlap each other              |
+| `door_clearance`       | 3      | 90 cm in front of each door is free                                   |
+| `front_clearance`      | 2      | Free space in front of desk (90), wardrobe (80), sofa/shelf (60)      |
+| `bed_side_clearance`   | 2      | At least 60 cm free beside one long side of the bed                   |
+| `side_table_placement` | 1      | Side tables and nightstands sit within 10 cm of a sofa or bed         |
+| `wall_anchoring`       | 2      | Sofa, TV unit, shelf, wardrobe and bed have their back against a wall |
 
 ## Ergonomic mode
 

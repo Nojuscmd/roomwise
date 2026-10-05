@@ -1,5 +1,5 @@
-import { footprint, insideRoom, intersects, openingZone, opposite, Rect } from './geometry';
-import { DOOR_CLEARANCE_CM } from './rules/common';
+import { footprint, insideRoom, intersects, openingZone, opposite, rectGap } from './geometry';
+import { DOOR_CLEARANCE_CM, isSideTable, SERVED_TYPES } from './rules/common';
 import { evaluateLayout } from './rules';
 import {
   Arrangement,
@@ -93,13 +93,8 @@ export function candidatePlacements(item: Furniture, layout: RoomLayout): Furnit
   return out;
 }
 
-type Companions = Map<string, Furniture>;
 
-function rectGap(a: Rect, b: Rect): number {
-  const dx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w));
-  const dy = Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h));
-  return Math.hypot(dx, dy);
-}
+type Companions = Map<string, Furniture>;
 
 /** Pair each desk with the chair standing closest to it, so the chair can follow the desk. */
 function findCompanions(items: Furniture[]): Companions {
@@ -114,8 +109,7 @@ function findCompanions(items: Furniture[]): Companions {
     }
     if (!nearest) continue;
     const current = best.get(nearest.desk.id);
-    if (!current || nearest.gap < current.gap)
-      best.set(nearest.desk.id, { chair, gap: nearest.gap });
+    if (!current || nearest.gap < current.gap) best.set(nearest.desk.id, { chair, gap: nearest.gap });
   }
   return new Map([...best].map(([deskId, { chair }]) => [deskId, chair]));
 }
@@ -184,8 +178,37 @@ function isValidWithChair(cand: Furniture, others: Furniture[], ctx: Context): b
 const scoreOf = (items: Furniture[], ctx: Context): number =>
   evaluateLayout({ ...ctx.layout, items: withChairs(items, ctx) }, ctx.mode).score;
 
+/** Small, light pieces are easy to carry across the room, so moving them costs very little. */
+const LIGHT_TYPES = new Set<FurnitureType>(['other', 'table']);
+const LIGHT_MOVE_COST_PER_CM = 0.00001;
+
 const moveCostPerCm = (f: Furniture): number =>
-  HEAVY_TYPES.has(f.type) ? HEAVY_MOVE_COST_PER_CM : MOVE_COST_PER_CM;
+  HEAVY_TYPES.has(f.type)
+    ? HEAVY_MOVE_COST_PER_CM
+    : LIGHT_TYPES.has(f.type)
+      ? LIGHT_MOVE_COST_PER_CM
+      : MOVE_COST_PER_CM;
+
+const SIDE_TABLE_GAP_CM = 5;
+
+/** Spots right beside a sofa or bed (at either end of each side) for a side table or nightstand. */
+function adjacentCandidates(item: Furniture, others: Furniture[]): Furniture[] {
+  const out: Furniture[] = [];
+  for (const target of others) {
+    if (!SERVED_TYPES.has(target.type)) continue;
+    const t = footprint(target);
+    const facing = target.facing;
+    const { w, h } = dims(item, facing);
+    const make = (xCm: number, yCm: number): Furniture => ({ ...item, xCm, yCm, facing });
+    for (const y of [t.y, t.y + t.h - h]) {
+      out.push(make(t.x - w - SIDE_TABLE_GAP_CM, y), make(t.x + t.w + SIDE_TABLE_GAP_CM, y));
+    }
+    for (const x of [t.x, t.x + t.w - w]) {
+      out.push(make(x, t.y - h - SIDE_TABLE_GAP_CM), make(x, t.y + t.h + SIDE_TABLE_GAP_CM));
+    }
+  }
+  return out;
+}
 
 function pickBest(
   item: Furniture,
@@ -196,7 +219,8 @@ function pickBest(
   let best: Furniture | null = null;
   let bestScore = -Infinity;
   // Staying where it is is always an option, so a good spot is only left for a clear gain.
-  for (const cand of [item, origin, ...candidatePlacements(item, ctx.layout)]) {
+  const extra = isSideTable(item) ? adjacentCandidates(item, others) : [];
+  for (const cand of [item, origin, ...candidatePlacements(item, ctx.layout), ...extra]) {
     if (!isValidWithChair(cand, others, ctx)) continue;
     const score = scoreOf([...others, cand], ctx);
     // Prefer the smallest change from where the item already is; heavy items cost more to move.
@@ -345,9 +369,11 @@ export function suggestArrangement(layout: RoomLayout, mode: Mode): Arrangement 
 
   // Prefer the gentle result unless the from-scratch one is clearly better (a big fix such as a
   // bed across the door needs a big move that small steps cannot reach).
-  const placed = scoreOf(greedy, ctx) - scoreOf(gentle, ctx) > 0.01 ? greedy : gentle;
+  const placed = scoreOf(greedy, ctx) - scoreOf(gentle, ctx) > 0.03 ? greedy : gentle;
 
-  const settled = revertMinorMoves(movable, placed, ctx);
+  const tidied = revertMinorMoves(movable, placed, ctx);
+  // Never suggest something worse than what the room already is.
+  const settled = scoreOf(tidied, ctx) >= scoreOf(movable, ctx) ? tidied : movable;
 
   // Report items in the original order so the UI stays stable. A chair stays exactly where it was
   // unless its desk moved.
