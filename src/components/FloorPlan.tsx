@@ -10,30 +10,128 @@ interface Props {
   items: Furniture[];
   /** Draw arrows from each item's previous position to its new one. */
   moves?: Move[];
+  /** Total width of the drawing in pixels, including the space for the measurements. */
   width: number;
+  /**
+   * `full` draws the plan on grid paper with the room's measurements. `thumb` is a bare miniature
+   * for lists: no grid, text or icons.
+   */
+  variant?: 'full' | 'thumb';
   /** Highlight this item and report taps on items (used by the correction screen). */
   selectedId?: string | null;
   onSelect?: (id: string) => void;
 }
 
-const WALL_PX = 3;
 /** Horizontal space kept free for the facing marker on items that face east or west. */
 const MARKER_SPACE = 10;
 
-function OpeningMark({ o, room, scale }: { o: Opening; room: RoomLayout['room']; scale: number }) {
+const MARGINS = {
+  full: { left: 44, top: 26, right: 6, bottom: 6, wall: 3 },
+  thumb: { left: 2, top: 2, right: 2, bottom: 2, wall: 2 },
+} as const;
+
+const meters = (cm: number): string => `${(cm / 100).toFixed(2)} m`;
+
+function OpeningMark({
+  o,
+  room,
+  scale,
+  wall,
+}: {
+  o: Opening;
+  room: RoomLayout['room'];
+  scale: number;
+  wall: number;
+}) {
   const z = openingZone(o, room, 6);
   const isDoor = o.kind === 'door';
-  const color = isDoor ? colors.accent : '#7FA8C4';
   // Cover the wall line with a coloured segment so doors and windows read at a glance.
   return (
     <Rect
-      x={z.x * scale - (o.wall === 'W' ? WALL_PX : 0)}
-      y={z.y * scale - (o.wall === 'N' ? WALL_PX : 0)}
-      width={Math.max(z.w * scale, WALL_PX * 2)}
-      height={Math.max(z.h * scale, WALL_PX * 2)}
-      fill={color}
-      opacity={isDoor ? 1 : 0.8}
+      x={z.x * scale - (o.wall === 'W' ? wall : 0)}
+      y={z.y * scale - (o.wall === 'N' ? wall : 0)}
+      width={Math.max(z.w * scale, wall * 2)}
+      height={Math.max(z.h * scale, wall * 2)}
+      fill={isDoor ? colors.tape : '#9DBCF2'}
+      stroke={colors.ink}
+      strokeOpacity={0.6}
+      strokeWidth={1}
     />
+  );
+}
+
+/** Faint grid paper: a line every 50 cm, a slightly stronger one every metre. */
+function Grid({ room, scale }: { room: RoomLayout['room']; scale: number }) {
+  const step = scale * 50 < 9 ? 100 : 50;
+  const lines: React.ReactNode[] = [];
+  const w = room.widthCm * scale;
+  const h = room.depthCm * scale;
+  for (let cm = step; cm < room.widthCm; cm += step) {
+    lines.push(
+      <Line
+        key={`v${cm}`}
+        x1={cm * scale}
+        y1={0}
+        x2={cm * scale}
+        y2={h}
+        stroke={colors.ink}
+        strokeOpacity={cm % 100 === 0 ? 0.1 : 0.045}
+        strokeWidth={1}
+      />,
+    );
+  }
+  for (let cm = step; cm < room.depthCm; cm += step) {
+    lines.push(
+      <Line
+        key={`h${cm}`}
+        x1={0}
+        y1={cm * scale}
+        x2={w}
+        y2={cm * scale}
+        stroke={colors.ink}
+        strokeOpacity={cm % 100 === 0 ? 0.1 : 0.045}
+        strokeWidth={1}
+      />,
+    );
+  }
+  return <G>{lines}</G>;
+}
+
+/** Dimension lines like on a technical drawing: width above the room, depth to its left. */
+function Dimensions({ room, scale }: { room: RoomLayout['room']; scale: number }) {
+  const w = room.widthCm * scale;
+  const h = room.depthCm * scale;
+  const line = { stroke: colors.ink, strokeOpacity: 0.55, strokeWidth: 1 } as const;
+  return (
+    <G>
+      <Line x1={0} y1={-6} x2={w} y2={-6} {...line} />
+      <Line x1={0} y1={-9} x2={0} y2={-3} {...line} />
+      <Line x1={w} y1={-9} x2={w} y2={-3} {...line} />
+      <SvgText
+        x={w / 2}
+        y={-12}
+        fontSize={11}
+        fill={colors.ink}
+        fillOpacity={0.8}
+        textAnchor="middle"
+      >
+        {meters(room.widthCm)}
+      </SvgText>
+
+      <Line x1={-6} y1={0} x2={-6} y2={h} {...line} />
+      <Line x1={-9} y1={0} x2={-3} y2={0} {...line} />
+      <Line x1={-9} y1={h} x2={-3} y2={h} {...line} />
+      <SvgText
+        x={-24}
+        y={h / 2 + 4}
+        fontSize={11}
+        fill={colors.ink}
+        fillOpacity={0.8}
+        textAnchor="middle"
+      >
+        {meters(room.depthCm)}
+      </SvgText>
+    </G>
   );
 }
 
@@ -52,17 +150,28 @@ function FacingMarker({ item, scale }: { item: Furniture; scale: number }) {
   return <Polygon points={pts[item.facing]} fill={colors.ink} opacity={0.35} />;
 }
 
-export function FloorPlan({ layout, items, moves = [], width, selectedId, onSelect }: Props) {
+export function FloorPlan({
+  layout,
+  items,
+  moves = [],
+  width,
+  variant = 'full',
+  selectedId,
+  onSelect,
+}: Props) {
   const { room, openings } = layout;
-  const scale = width / room.widthCm;
-  const height = room.depthCm * scale;
-  const pad = WALL_PX;
+  const full = variant === 'full';
+  const m = MARGINS[variant];
+  const drawWidth = width - m.left - m.right;
+  const scale = drawWidth / room.widthCm;
+  const drawHeight = room.depthCm * scale;
+  const totalHeight = drawHeight + m.top + m.bottom;
 
   return (
     <Svg
-      width={width + pad * 2}
-      height={height + pad * 2}
-      viewBox={`${-pad} ${-pad} ${width + pad * 2} ${height + pad * 2}`}
+      width={width}
+      height={totalHeight}
+      viewBox={`${-m.left} ${-m.top} ${width} ${totalHeight}`}
       accessibilityLabel="Top-down floor plan of the room"
     >
       <Defs>
@@ -71,25 +180,47 @@ export function FloorPlan({ layout, items, moves = [], width, selectedId, onSele
         </Marker>
       </Defs>
 
+      <Rect x={0} y={0} width={drawWidth} height={drawHeight} fill={colors.surface} />
+      {full ? <Grid room={room} scale={scale} /> : null}
+      {full ? <Dimensions room={room} scale={scale} /> : null}
       <Rect
         x={0}
         y={0}
-        width={width}
-        height={height}
-        fill={colors.surface}
+        width={drawWidth}
+        height={drawHeight}
+        fill="none"
         stroke={colors.ink}
-        strokeWidth={WALL_PX}
-        rx={2}
+        strokeWidth={m.wall}
+        rx={1}
       />
 
       {openings.map((o) => (
-        <OpeningMark key={o.id} o={o} room={room} scale={scale} />
+        <OpeningMark key={o.id} o={o} room={room} scale={scale} wall={m.wall} />
       ))}
 
       {items.map((item) => {
         const fp = footprint(item);
         const w = fp.w * scale;
         const h = fp.h * scale;
+        const selected = item.id === selectedId;
+
+        if (!full) {
+          return (
+            <Rect
+              key={item.id}
+              x={fp.x * scale}
+              y={fp.y * scale}
+              width={w}
+              height={h}
+              rx={2}
+              fill={furnitureColors[item.type]}
+              stroke={colors.ink}
+              strokeOpacity={0.45}
+              strokeWidth={1}
+            />
+          );
+        }
+
         const markerSpace = item.facing === 'E' || item.facing === 'W' ? MARKER_SPACE : 0;
         const { fit: label, reserved } = fitLabelBesideMarker(item.label, w, h, markerSpace);
         // Shift the text away from the facing marker so the two never touch.
@@ -99,6 +230,7 @@ export function FloorPlan({ layout, items, moves = [], width, selectedId, onSele
           (item.facing === 'W' ? shift : 0) -
           (item.facing === 'E' ? shift : 0);
         const cy = (fp.y + fp.h / 2) * scale;
+
         return (
           <G key={item.id} onPress={onSelect ? () => onSelect(item.id) : undefined}>
             <Rect
@@ -106,11 +238,11 @@ export function FloorPlan({ layout, items, moves = [], width, selectedId, onSele
               y={fp.y * scale}
               width={w}
               height={h}
-              rx={5}
+              rx={4}
               fill={furnitureColors[item.type]}
-              stroke={item.id === selectedId ? colors.accent : colors.ink}
-              strokeOpacity={item.id === selectedId ? 1 : 0.25}
-              strokeWidth={item.id === selectedId ? 3 : 1}
+              stroke={selected ? colors.accent : colors.ink}
+              strokeOpacity={selected ? 1 : 0.55}
+              strokeWidth={selected ? 3 : 1.4}
             />
             <FurnitureIcon item={item} scale={scale} />
             <FacingMarker item={item} scale={scale} />
@@ -138,26 +270,28 @@ export function FloorPlan({ layout, items, moves = [], width, selectedId, onSele
         );
       })}
 
-      {moves.map((m) => {
-        const item = items.find((i) => i.id === m.itemId);
-        if (!item) return null;
-        const to = center(footprint(item));
-        const fromItem: Furniture = { ...item, ...m.from };
-        const from = center(footprint(fromItem));
-        return (
-          <Line
-            key={m.itemId}
-            x1={from.x * scale}
-            y1={from.y * scale}
-            x2={to.x * scale}
-            y2={to.y * scale}
-            stroke={colors.accent}
-            strokeWidth={2}
-            strokeDasharray="5 4"
-            markerEnd="url(#arrow)"
-          />
-        );
-      })}
+      {full
+        ? moves.map((mv) => {
+            const item = items.find((i) => i.id === mv.itemId);
+            if (!item) return null;
+            const to = center(footprint(item));
+            const fromItem: Furniture = { ...item, ...mv.from };
+            const from = center(footprint(fromItem));
+            return (
+              <Line
+                key={mv.itemId}
+                x1={from.x * scale}
+                y1={from.y * scale}
+                x2={to.x * scale}
+                y2={to.y * scale}
+                stroke={colors.accent}
+                strokeWidth={2.5}
+                strokeDasharray="5 4"
+                markerEnd="url(#arrow)"
+              />
+            );
+          })
+        : null}
     </Svg>
   );
 }

@@ -37,7 +37,8 @@ export function Button({
         isPrimary && styles.buttonPrimary,
         variant === 'secondary' && styles.buttonSecondary,
         variant === 'danger' && styles.buttonDanger,
-        (pressed || disabled) && { opacity: 0.7 },
+        pressed && { opacity: 0.88, transform: [{ scale: 0.985 }] },
+        disabled && { opacity: 0.4 },
         style,
       ]}
     >
@@ -79,7 +80,7 @@ export function SegmentedControl<T extends string>({
             onPress={() => onChange(o.value)}
             style={[styles.segment, active && styles.segmentActive]}
           >
-            <Text style={[styles.segmentText, active && { color: colors.ink, fontWeight: '600' }]}>
+            <Text style={[styles.segmentText, active && { color: '#fff', fontWeight: '700' }]}>
               {o.label}
             </Text>
           </Pressable>
@@ -103,7 +104,7 @@ export function Card({
 export function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <View style={styles.bulletRow}>
-      <Text style={type.body}>•</Text>
+      <Text style={[type.body, { color: colors.accent }]}>•</Text>
       <Text style={[type.body, styles.bulletText]}>{children}</Text>
     </View>
   );
@@ -124,25 +125,29 @@ export function Centered({ children }: { children: React.ReactNode }) {
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 48,
+    minHeight: 52,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonPrimary: { backgroundColor: colors.accent },
-  buttonSecondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  buttonPrimary: { backgroundColor: colors.ink },
+  buttonSecondary: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+  },
   buttonDanger: { backgroundColor: colors.warnSoft },
-  buttonText: { fontSize: 16, fontWeight: '600', color: colors.ink },
+  buttonText: { fontSize: 16, fontWeight: '700', color: colors.ink, letterSpacing: -0.1 },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: colors.line,
+    backgroundColor: '#DFD9CE',
     borderRadius: radius.md,
-    padding: 3,
+    padding: 4,
   },
-  segment: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radius.md - 3 },
-  segmentActive: { backgroundColor: colors.surface },
-  segmentText: { fontSize: 14, color: colors.muted },
+  segment: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radius.md - 4 },
+  segmentActive: { backgroundColor: colors.ink },
+  segmentText: { fontSize: 14, color: colors.muted, fontWeight: '500' },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -155,6 +160,8 @@ const styles = StyleSheet.create({
   error: {
     backgroundColor: colors.warnSoft,
     borderRadius: radius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warn,
     padding: spacing.md,
     gap: spacing.sm,
   },

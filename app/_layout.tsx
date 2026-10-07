@@ -32,11 +32,11 @@ function Gate() {
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
         headerTintColor: colors.ink,
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: { fontWeight: '700', color: colors.ink },
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Rooms' }} />
+      <Stack.Screen name="index" options={{ title: 'Rooms', headerShown: false }} />
       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       <Stack.Screen name="capture" options={{ title: 'New room', presentation: 'modal' }} />
       <Stack.Screen name="room/[id]" options={{ title: 'Room' }} />
