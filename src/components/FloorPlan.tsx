@@ -3,6 +3,7 @@ import Svg, { Defs, G, Line, Marker, Path, Polygon, Rect, Text as SvgText } from
 import { Furniture, Move, Opening, RoomLayout, center, footprint, openingZone } from '@/domain';
 import { colors, furnitureColors } from '@/theme/theme';
 import { FurnitureIcon } from './FurnitureIcon';
+import { fitLabelBesideMarker } from './labelFit';
 
 interface Props {
   layout: Pick<RoomLayout, 'room' | 'openings'>;
@@ -16,6 +17,8 @@ interface Props {
 }
 
 const WALL_PX = 3;
+/** Horizontal space kept free for the facing marker on items that face east or west. */
+const MARKER_SPACE = 10;
 
 function OpeningMark({ o, room, scale }: { o: Opening; room: RoomLayout['room']; scale: number }) {
   const z = openingZone(o, room, 6);
@@ -87,7 +90,15 @@ export function FloorPlan({ layout, items, moves = [], width, selectedId, onSele
         const fp = footprint(item);
         const w = fp.w * scale;
         const h = fp.h * scale;
-        const fits = w > 44 && h > 22;
+        const markerSpace = item.facing === 'E' || item.facing === 'W' ? MARKER_SPACE : 0;
+        const { fit: label, reserved } = fitLabelBesideMarker(item.label, w, h, markerSpace);
+        // Shift the text away from the facing marker so the two never touch.
+        const shift = reserved ? markerSpace / 2 : 0;
+        const cx =
+          (fp.x + fp.w / 2) * scale +
+          (item.facing === 'W' ? shift : 0) -
+          (item.facing === 'E' ? shift : 0);
+        const cy = (fp.y + fp.h / 2) * scale;
         return (
           <G key={item.id} onPress={onSelect ? () => onSelect(item.id) : undefined}>
             <Rect
@@ -103,16 +114,25 @@ export function FloorPlan({ layout, items, moves = [], width, selectedId, onSele
             />
             <FurnitureIcon item={item} scale={scale} />
             <FacingMarker item={item} scale={scale} />
-            {fits ? (
-              <SvgText
-                x={(fp.x + fp.w / 2) * scale}
-                y={(fp.y + fp.h / 2) * scale + 4}
-                fontSize={11}
-                fill={colors.ink}
-                textAnchor="middle"
-              >
-                {item.label}
-              </SvgText>
+            {label ? (
+              <G>
+                {label.lines.map((line, index) => (
+                  <SvgText
+                    key={`${index}-${line}`}
+                    x={cx}
+                    y={
+                      cy +
+                      label.fontSize * 0.35 +
+                      (index - (label.lines.length - 1) / 2) * label.fontSize * 1.15
+                    }
+                    fontSize={label.fontSize}
+                    fill={colors.ink}
+                    textAnchor="middle"
+                  >
+                    {line}
+                  </SvgText>
+                ))}
+              </G>
             ) : null}
           </G>
         );

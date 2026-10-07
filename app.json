@@ -12,7 +12,8 @@
         "expo-image-picker",
         {
           "cameraPermission": "Roomwise needs the camera to photograph your room.",
-          "photosPermission": "Roomwise needs photo access to analyze your room."
+          "photosPermission": "Roomwise needs photo access to analyze your room.",
+          "microphonePermission": false
         }
       ],
       "expo-asset"
@@ -22,8 +23,7 @@
       "bundleIdentifier": "com.example.roomwise"
     },
     "android": {
-      "package": "com.example.roomwise",
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "package": "com.example.roomwise"
     },
     "extra": {
       "router": {},
