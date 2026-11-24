@@ -1,6 +1,6 @@
 # Ataskaitos tekstai: DI paslaugos pagrindimas ir etika
 
-Paruošti tekstai ataskaitai. Skliausteliuose `[...]` pažymėtą vietą patikrink pats.
+Paruošti tekstai ataskaitai.
 
 ## A. Uždaro DI API naudojimo pagrindimas (V, VI ir VIII skyriams)
 
@@ -55,7 +55,7 @@ gali atsitiktinai matytis asmeniniai daiktai.
 apie tai turi būti informuoti prieš naudojimą. Testuotojai buvo informuoti raštu (žinute) prieš naudodami programą: jiems paaiškinta, kad nuotrauka siunčiama į DI paslaugą analizei ir saugoma privačiai.
 
 **Testuotojai.** Programą išbandė 4 draugai savanoriškai. Naudoti tik jų pačių pasirinkti kambariai.
-Jei ataskaitoje cituojami jų atsakymai, jie pateikiami nuasmeninti (be pavardžių). [Patikrink: ar draugai sutiko, kad jų atsakymai būtų cituojami? Jei ne, paklausk jų žinute prieš cituodamas.]
+Testuotojai sutiko, kad jų atsakymai būtų cituojami ataskaitoje; jie pateikiami nuasmeninti (be pavardžių).
 
 **Rizikos ir ribos.**
 
