@@ -35,11 +35,43 @@ or your friends took, or images with a free licence.
   TV in front of a window, side table far from the sofa). Each issue became a rule or a solver
   change, with a unit test.
 
-## Summary (fill in at the end)
+## Furniture detection counts (hand-counted)
 
-- Rooms tested: _
-- Usable detections: _ of _ (_ %)
-- Suggestions rated good or acceptable: _ of _
-- Most common detection mistakes: _
-- Most common suggestion problems: _
-- What would improve results next: _
+Counted by eye on 25 November 2026: real furniture in the room versus items the app detected from
+the photos, with no manual corrections. Per-type counts are in `eval/perception_counts.csv`; run
+`npm run perception` to reproduce the table below.
+
+| Room     | Real items | Detected | Missed | Extra |
+| -------- | ---------- | -------- | ------ | ----- |
+| Test     | 8          | 6        | 2      | 0     |
+| Toilet   | 6          | 5        | 1      | 0     |
+| Kitchen  | 5          | 5        | 0      | 0     |
+| Corridor | 2          | 2        | 0      | 0     |
+| **All**  | **21**     | **18**   | **3**  | **0** |
+
+| Metric    | Value |
+| --------- | ----- |
+| Precision | 1.00  |
+| Recall    | 0.86  |
+| F1        | 0.92  |
+
+All three missed items are wall-mounted shelves or cabinets, or a floor cabinet, grouped as type
+`shelf` (recall 0.40 for that type, 1.00 for every other type). Only four rooms and 21 items were
+counted, so these numbers are indicative, not statistically reliable.
+
+## Layout quality on synthetic rooms
+
+1000 synthetic rooms (seed 42, random furniture placement) were scored before and after the
+suggestion with the same rules. In ergonomic mode the mean rule score went from 0.68 to 0.99,
+rooms with overlapping furniture from 80 % to 1 %, and rooms with a blocked door from 45 % to
+1.6 %. The suggestion was never worse than the original layout. See `results/summary.md` for both
+modes and `npm run evaluate` to reproduce.
+
+## Summary
+
+- Rooms tested for detection: 4 (21 real furniture items)
+- Items detected: 18 of 21 (86 %), none invented
+- Most common detection mistake: wall-mounted shelves and cabinets are missed
+- Suggestion ratings (good, acceptable, bad) per real room: not yet rated
+- What would improve results next: more test rooms, rating the suggestions on real rooms, and a
+  prompt hint for wall-mounted storage

@@ -47,9 +47,10 @@ Re-run this script after every change to a policy or migration.
 
 ## Known limitations
 
-- **Open sign-up.** Anyone with the web link can create an account (email confirmation is off while
-  testing). The per-user rate limit does not stop someone creating many accounts. Before a wider
-  release: turn email confirmation back on, and set a spending limit on the Anthropic account.
+- **Open sign-up.** Anyone with the web link can create an account. Email confirmation was turned
+  on in Supabase on 25 November 2026, so new accounts must confirm their address. The per-user rate
+  limit still does not stop someone creating many accounts. Anthropic spending is capped by the
+  prepaid credit balance, with auto-reload switched off.
 - **Photos leave the project.** To analyse a room, its photos are sent to the Anthropic API. This
   should be stated to users before wider use.
 - **CORS is open** (`Access-Control-Allow-Origin: *`) on the Edge Function. This is acceptable

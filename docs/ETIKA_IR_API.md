@@ -70,8 +70,9 @@ pasirink: gauti trumpą žodinį/žinutės sutikimą prieš cituojant atsakymus.
 
 **Žinomi trūkumai (sąžiningai).**
 
-- Registracija atvira (el. pašto patvirtinimas išjungtas testavimo metu). Prieš platesnį išleidimą jį
-  reikia įjungti ir nustatyti Anthropic išlaidų limitą.
+- Registracija atvira, bet el. pašto patvirtinimas įjungtas (2026-11-25), todėl naujos paskyros turi
+  patvirtinti adresą. Anthropic išlaidas riboja išankstinių mokėjimų kreditų likutis, o automatinis
+  papildymas išjungtas.
 - Paskyros ištrynimo ekrano nėra. Kambario trynimas pašalina jo nuotraukas ir išdėstymus, o visą paskyrą
   galima ištrinti tik Supabase skydelyje.
 - Programa informacinė: ji nieko nevaldo ir pataria, o sprendimą visada priima žmogus.
