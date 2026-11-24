@@ -1,0 +1,7 @@
+# Python tooling for Roomwise data analysis (flatten_rooms.py + anomaly notebook)
+# Versions below are those installed where this file was prepared.
+# Python 3.13 recommended; confirm your own with: pip freeze | findstr /i "pandas scikit numpy matplotlib"
+pandas==3.0.5
+numpy==2.5.3
+scikit-learn==1.9.1
+matplotlib==3.11.2

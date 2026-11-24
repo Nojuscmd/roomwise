@@ -12,7 +12,9 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "analysis:test": "tsx scripts/test-analysis.ts"
+    "analysis:test": "tsx scripts/test-analysis.ts",
+    "synthetic": "tsx scripts/generate-synthetic.ts",
+    "evaluate": "tsx scripts/evaluate.ts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
