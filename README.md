@@ -65,6 +65,9 @@ suggestions are reproducible and every one can be traced to a named rule.
 - **Privacy by default.** Photos sit in a private bucket, one folder per user, and every table is
   protected by Row Level Security.
 
+**Live demo:** https://nojuscmd.github.io/roomwise/ (works in any browser, no install; create an
+account and upload a room photo).
+
 ## Tech stack
 
 | Layer   | Choice                                                        |
@@ -100,12 +103,15 @@ In the Supabase dashboard, under Authentication, turn off "Confirm email" while 
 
 ## Scripts
 
-| Command             | What it does                                             |
-| ------------------- | -------------------------------------------------------- |
-| `npm test`          | Unit tests for the domain layer (rules, solver, editing) |
-| `npm run lint`      | ESLint                                                   |
-| `npm run typecheck` | TypeScript strict check                                  |
-| `npm run format`    | Prettier                                                 |
+| Command              | What it does                                             |
+| -------------------- | -------------------------------------------------------- |
+| `npm test`           | Unit tests for the domain layer (rules, solver, editing) |
+| `npm run lint`       | ESLint                                                   |
+| `npm run typecheck`  | TypeScript strict check                                  |
+| `npm run format`     | Prettier                                                 |
+| `npm run synthetic`  | Generate 1000 synthetic rooms into `data/synthetic/`     |
+| `npm run evaluate`   | Compare original layouts with Roomwise suggestions       |
+| `npm run perception` | Precision / recall / F1 of photo detection (hand counts) |
 
 Every push runs format check, lint, typecheck and tests in GitHub Actions.
 
@@ -119,7 +125,35 @@ src/lib/              Supabase client, API layer, auth
 src/theme/            Colours, spacing, typography
 supabase/migrations/  Database schema + Row Level Security
 supabase/functions/   analyze-room Edge Function and its prompt
+scripts/              Synthetic data generator, evaluation, perception metrics
+python/               Anomaly finder (IsolationForest) for the exported data
+eval/                 Hand-counted detection results (perception_counts.csv)
+results/              Generated evaluation tables
+docs/                 Rules, architecture, security, results, sources, ethics
 ```
+
+## Evaluation and data
+
+Two layers are evaluated separately.
+
+1. **Layout quality (Baseline vs Proposed).** `npm run synthetic` creates 1000 random rooms with
+   plausible sizes (synthetic, not real photographs). `npm run evaluate` scores each room as it is
+   (Baseline) and after Roomwise's suggestion (Proposed) with the same rules, and writes
+   `results/summary.md`: rule score, overlaps, blocked doors, moves and solver time.
+2. **Photo detection.** Count the real furniture of a room by eye, record what the app detected in
+   `eval/perception_counts.csv` (`room,type,truth,detected`), then run `npm run perception` for
+   precision, recall and F1.
+
+Anomaly finder (Python, optional):
+
+```bash
+npm run synthetic
+pip install -r requirements.txt
+python python/anomaly_synthetic.py      # writes results/anomalies.csv and results/anomalies.png
+```
+
+Sources are listed in [docs/SOURCES.md](docs/SOURCES.md); privacy and the reasons for using a
+hosted AI model are in [docs/ETIKA_IR_API.md](docs/ETIKA_IR_API.md).
 
 ## Security notes
 
@@ -137,5 +171,6 @@ supabase/functions/   analyze-room Edge Function and its prompt
 
 ## Development note
 
-Built as a solo student project with AI assistance (Claude, by Anthropic) for code generation and
-review. The author ran, tested and directed all of it.
+Built as a student team project (college) with AI assistance (Claude, by Anthropic) for code
+generation and review. The team members took part in the design and testing; the code was written,
+run and directed by one team member.

@@ -1,6 +1,6 @@
 # Ataskaitos tekstai: DI paslaugos pagrindimas ir etika
 
-Paruošti tekstai ataskaitai. Skliausteliuose `[...]` pažymėtas vietas patikrink ir užpildyk pats.
+Paruošti tekstai ataskaitai. Skliausteliuose `[...]` pažymėtą vietą patikrink pats.
 
 ## A. Uždaro DI API naudojimo pagrindimas (V, VI ir VIII skyriams)
 
@@ -52,11 +52,10 @@ gali atsitiktinai matytis asmeniniai daiktai.
 - Nuotraukų dydis prieš įkėlimą sumažinamas (iki 1400 px pločio).
 
 **Duomenų siuntimas trečiajai šaliai.** Analizės metu nuotraukos siunčiamos į Anthropic API. Naudotojai
-apie tai turi būti informuoti prieš naudojimą. [Parašyk, kaip informavai testuotojus.]
+apie tai turi būti informuoti prieš naudojimą. Testuotojai buvo informuoti raštu (žinute) prieš naudodami programą: jiems paaiškinta, kad nuotrauka siunčiama į DI paslaugą analizei ir saugoma privačiai.
 
-**Testuotojai.** Programą išbandė [N] draugų savanoriškai. Naudoti tik jų pačių pasirinkti kambariai.
-Rezultatuose pateikiami nuasmeninti atsiliepimai (be pavardžių). [Jei turi sutikimus, nurodyk. Jei ne,
-pasirink: gauti trumpą žodinį/žinutės sutikimą prieš cituojant atsakymus.]
+**Testuotojai.** Programą išbandė 3 draugai savanoriškai. Naudoti tik jų pačių pasirinkti kambariai.
+Jei ataskaitoje cituojami jų atsakymai, jie pateikiami nuasmeninti (be pavardžių). [Patikrink: ar draugai sutiko, kad jų atsakymai būtų cituojami? Jei ne, paklausk jų žinute prieš cituodamas.]
 
 **Rizikos ir ribos.**
 
@@ -79,7 +78,7 @@ pasirink: gauti trumpą žodinį/žinutės sutikimą prieš cituojant atsakymus.
 
 ## C. Sutikimo žinutė testuotojams (galima nusiųsti)
 
-> Sveiki! Mokausi universitete ir kuriu programą Roomwise (kambario išdėstymo patarimai pagal nuotrauką).
-> Prašau išbandyti ir trumpai atsakyti. Nuotrauka bus išsiųsta į DI paslaugą (Anthropic) analizei ir
-> saugoma privačiai. Nefotografuok žmonių ar dokumentų. Tavo atsakymus ataskaitoje cituosiu be
-> pavardės. Jei nenori, kad cituočiau, parašyk. Ar sutinki?
+> Sveiki! Mes mokomės kolegijoje ir kuriame programą Roomwise (kambario išdėstymo patarimai pagal nuotrauką).
+> Prašome išbandyti ir trumpai atsakyti. Nuotrauka bus išsiųsta į DI paslaugą (Anthropic) analizei ir
+> saugoma privačiai. Nefotografuok žmonių ar dokumentų. Tavo atsakymus ataskaitoje cituosime be
+> pavardės. Jei nenori, kad cituotume, parašyk. Ar sutinki?
