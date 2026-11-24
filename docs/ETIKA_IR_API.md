@@ -54,7 +54,7 @@ gali atsitiktinai matytis asmeniniai daiktai.
 **Duomenų siuntimas trečiajai šaliai.** Analizės metu nuotraukos siunčiamos į Anthropic API. Naudotojai
 apie tai turi būti informuoti prieš naudojimą. Testuotojai buvo informuoti raštu (žinute) prieš naudodami programą: jiems paaiškinta, kad nuotrauka siunčiama į DI paslaugą analizei ir saugoma privačiai.
 
-**Testuotojai.** Programą išbandė 3 draugai savanoriškai. Naudoti tik jų pačių pasirinkti kambariai.
+**Testuotojai.** Programą išbandė 4 draugai savanoriškai. Naudoti tik jų pačių pasirinkti kambariai.
 Jei ataskaitoje cituojami jų atsakymai, jie pateikiami nuasmeninti (be pavardžių). [Patikrink: ar draugai sutiko, kad jų atsakymai būtų cituojami? Jei ne, paklausk jų žinute prieš cituodamas.]
 
 **Rizikos ir ribos.**
