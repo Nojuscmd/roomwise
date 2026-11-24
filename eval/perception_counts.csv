@@ -1,1 +1,13 @@
 room,type,truth,detected
+Test,sofa,1,1
+Test,table,1,1
+Test,desk,1,1
+Test,wardrobe,1,1
+Test,tv_unit,1,1
+Test,shelf,3,1
+Toilet,shelf,2,1
+Toilet,other,4,4
+Kitchen,table,1,1
+Kitchen,other,4,4
+Corridor,other,1,1
+Corridor,wardrobe,1,1
